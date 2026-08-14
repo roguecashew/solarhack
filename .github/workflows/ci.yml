@@ -64,3 +64,5 @@ jobs:
           echo "sentinel-samples in sync with reports"
       - name: Sentinel outputs conform to frontend schema (ProjectDetail)
         run: node scripts/validate-sentinel.mjs
+      - name: TS and Python adapters are in lockstep
+        run: node scripts/test-adapter-parity.mjs

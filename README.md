@@ -41,13 +41,32 @@ uvicorn agent_backend.main:app
 ### For Kiran — frontend hookup
 The frontend consumes `ProjectDetail` (`frontend/src/lib/types.ts`). To swap mock
 data for live agent output:
-1. `GET /api/projects` → portfolio rows (worst-first), or
-2. run `python -m agent_backend.sentinel_adapter` to regenerate
+1. **TypeScript (in-repo, no Python needed):** `frontend/src/lib/agent/` —
+   ```ts
+   import { toSentinel } from "@/lib/agent";
+   const detail = toSentinel(agentReportJson, { id: "parcel-a", latitude: 35.9056, longitude: -114.9345, capacityMW: 180 });
+   ```
+   `toSentinel` converts the agent `AgentReport` (see `frontend/src/lib/agent/report.ts`)
+   into a complete `ProjectDetail` — pillars, evidence, contradictions, timeline,
+   priority actions. Parity-tested against the Python twin (`scripts/test-adapter-parity.mjs`).
+2. `GET /api/projects` → portfolio rows (worst-first), or
+3. run `python -m agent_backend.sentinel_adapter` to regenerate
    `agent_backend/sentinel-samples/*.sentinel.json` from any stored agent report, or
-3. call `to_sentinel(report, project_id, lat, lon, capacity_mw)` in the backend and
+4. call `to_sentinel(report, project_id, lat, lon, capacity_mw)` in the backend and
    serve it directly (e.g. `GET /api/projects/:id/sentinel`).
 
 Pillar mapping (agent components → Sentinel pillars): land/zoning/permitting/community/resource
 → **Land** · state/federal law, ecology/EPA → **Law** · financials → **Finance** ·
 materials/supply chain → **Materials** · demand/buyers/grid/interconnection → **Demand**.
 Band thresholds: ≥70 strong · 40–69 watch · <40 risk.
+
+### Before you push — for every dev (and your local agents)
+```bash
+node scripts/check-all.mjs        # full local gate; --quick skips python steps
+```
+Green locally = green in CI. It runs: agent report schema validation, Sentinel
+fixture freshness, frontend-schema conformance, TS/Python adapter parity, plus
+advisories for contract-surface edits and overlap with other branches. Python
+steps skip gracefully if python/pydantic isn't installed — CI still enforces them.
+PRs additionally get a **toe-guard bot comment** when your files overlap other
+open PRs or touch contract surfaces.
