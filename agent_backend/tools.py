@@ -15,11 +15,14 @@ SANDBOX_TIMEOUT = int(os.getenv("SANDBOX_TIMEOUT", "120"))
 
 # Hosts sandboxed code may reach. Everything else is refused at the sandbox
 # boundary, which is what makes injecting a live API key below tolerable:
-# generated code can spend the key against Anthropic, but cannot POST it to an
-# attacker's collector. Widen this list only with that tradeoff in mind.
+# generated code can spend the key against the model endpoint, but cannot POST
+# it to an attacker's collector. Widen this list only with that tradeoff in mind.
+# Default allows Anthropic and the Fireworks bridge the Daytona bots call.
 SANDBOX_ALLOWED_DOMAINS = [
     d.strip()
-    for d in os.getenv("SANDBOX_ALLOWED_DOMAINS", "api.anthropic.com").split(",")
+    for d in os.getenv(
+        "SANDBOX_ALLOWED_DOMAINS", "api.anthropic.com,hackathon.josephbissell.com"
+    ).split(",")
     if d.strip()
 ]
 
@@ -28,12 +31,18 @@ def _sandbox_env() -> dict[str, str]:
     """Credentials handed to code running inside the sandbox, so an agent can
     call the model from in there rather than round-tripping through the host.
 
-    Only the model credential travels. Daytona's own key stays on the host —
+    Only model credentials travel. Daytona's own key stays on the host —
     sandboxed code that could read it could spawn further sandboxes.
     """
     env = {"ANTHROPIC_MODEL": os.getenv("ANTHROPIC_MODEL", "claude-opus-5")}
     if key := os.getenv("ANTHROPIC_API_KEY"):
         env["ANTHROPIC_API_KEY"] = key
+    # OpenAI-compatible bridge credentials (the Daytona bots' LLM call).
+    if os.getenv("LLM_PROVIDER"):
+        env["LLM_PROVIDER"] = os.environ["LLM_PROVIDER"]
+    for var in ("LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY"):
+        if val := os.getenv(var):
+            env[var] = val
     return env
 
 
@@ -114,8 +123,9 @@ def sandbox_run(code: str) -> str:
     sandbox = Daytona().create(
         CreateSandboxFromSnapshotParams(
             env_vars=env,
-            # Deny-by-default egress; only the model endpoint is reachable.
-            domain_allow_list=SANDBOX_ALLOWED_DOMAINS,
+            # Deny-by-default egress; only the model endpoints are reachable.
+            # SDK expects a comma-separated string, not a list.
+            domain_allow_list=",".join(SANDBOX_ALLOWED_DOMAINS),
             # Torn down with the sandbox rather than lingering between runs.
             ephemeral=True,
         )
