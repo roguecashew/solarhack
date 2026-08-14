@@ -20,7 +20,7 @@ from .schemas import ChatAnswer, Report
 app = FastAPI(title="Red Flag Agent Backend")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-STORE = Path("reports")
+STORE = Path(__file__).resolve().parent / "reports"
 STORE.mkdir(exist_ok=True)
 JOB_QUEUES: dict[str, asyncio.Queue] = {}
 # Finished chat answers, keyed by the ask's own job id. In memory because an
