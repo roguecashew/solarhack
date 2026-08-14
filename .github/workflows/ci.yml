@@ -54,5 +54,13 @@ jobs:
           PY
       - name: Regenerate Sentinel outputs from agent reports
         run: python -m agent_backend.sentinel_adapter
+      - name: Sentinel samples are fresh (no stale contract fixtures)
+        run: |
+          if ! git diff --exit-code --quiet agent_backend/sentinel-samples; then
+            echo "::error::sentinel-samples are stale. Run 'python -m agent_backend.sentinel_adapter' and commit the regenerated files."
+            git diff --stat agent_backend/sentinel-samples
+            exit 1
+          fi
+          echo "sentinel-samples in sync with reports"
       - name: Sentinel outputs conform to frontend schema (ProjectDetail)
         run: node scripts/validate-sentinel.mjs
