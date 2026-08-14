@@ -44,7 +44,7 @@ export default function HomePage() {
   return (
     <PageContainer>
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-ink">Solar Sentinel</h1>
+        <h1 className="text-2xl font-semibold text-ink">RAI</h1>
         <p className="mt-1 text-muted">
           Read a project&apos;s due-diligence document set, surface the
           contradictions between documents, and score how close it is to

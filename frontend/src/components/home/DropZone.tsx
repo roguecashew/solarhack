@@ -85,7 +85,7 @@ export function DropZone() {
       <p className="mt-1 max-w-md text-sm text-muted">
         {picked.length > 0
           ? `${picked.length} file${picked.length === 1 ? "" : "s"} selected — starting the scan…`
-          : "Add land, legal, financial, materials and offtake files. Sentinel reads the set and flags contradictions across them."}
+          : "Add land, legal, financial, materials and offtake files. RAI reads the set and flags contradictions across them."}
       </p>
       <span className="mt-4 inline-flex items-center rounded-full bg-ink px-4 py-2 text-sm font-medium text-white">
         Select files

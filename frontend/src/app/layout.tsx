@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solar Sentinel",
+  title: "RAI",
   description:
     "AI due-diligence copilot for solar capital projects racing the ITC deadline.",
 };

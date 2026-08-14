@@ -1,4 +1,4 @@
-// Mock data layer for Solar Sentinel.
+// Mock data layer for RAI.
 //
 // The hero project ("Project Alpha") is populated to match the approved
 // reference implementation (solar-sentinel-project-tabs.html) screen-for-
@@ -372,7 +372,7 @@ const projectAlphaDetail: ProjectDetail = {
   report: {
     badge: "Draft — not exported",
     title: "Due Diligence Memo — Project Alpha",
-    preparedBy: "Prepared by Sentinel · Aug 14, 2026 · Run #A-1147",
+    preparedBy: "Prepared by RAI · Aug 14, 2026 · Run #A-1147",
     summary:
       "Project Alpha carries an Activation Score of 62 (At Risk). Two open items — a permit-timeline conflict in Law and a CAPEX variance in Finance — put the December 31, 2030 subsidy deadline at risk. Land and Demand are fully cleared. Resolving both open items would raise the score to an estimated 83.",
     findings: [
@@ -610,7 +610,7 @@ function lightDetail(project: Project): ProjectDetail {
     report: {
       badge: "Draft — not exported",
       title: `Due Diligence Memo — ${project.name}`,
-      preparedBy: "Prepared by Sentinel · Aug 14, 2026",
+      preparedBy: "Prepared by RAI · Aug 14, 2026",
       summary: `${project.name} carries an Activation Score of ${project.activationScore}. ${project.scoreReason}`,
       findings: openFactors.slice(0, 3).map((f) => ({
         title: f.name,
