@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/*
+  Solar Sentinel design tokens.
+  Two palettes, kept deliberately separate:
+   - Brand tokens are structural only (nav, primary buttons, non-status accents).
+   - Status tokens are reserved exclusively for risk-band semantics.
+  Never cross them (brand orange is not a "watch" state).
+*/
+@theme {
+  /* Brand / structural */
+  --color-ink: #0b0829; /* primary text — used instead of pure black */
+  --color-brand: #ff8400; /* orange */
+  --color-brand-soft: #fff2e3;
+  --color-vista: #8fa0d8; /* vista bleu */
+  --color-vista-soft: #eef1fa;
+  --color-amande: #f9dfc6;
+
+  /* Neutral scale */
+  --color-muted: #6b6a78; /* secondary text */
+  --color-faint: #9a99a6; /* tertiary text */
+  --color-hairline: #ecebf0; /* 1px dividers */
+  --color-canvas: #ffffff; /* page background is white */
+  --color-surface-2: #f7f7fa; /* very light fill for insets only */
+
+  /* Status — risk bands only */
+  --color-strong: #3e9257; /* cleared / on track */
+  --color-strong-soft: #e7f1ea;
+  --color-strong-ink: #2c6b40;
+  --color-watch: #c0862a; /* watch — muted amber, distinct from brand orange */
+  --color-watch-soft: #f6ecd8;
+  --color-watch-ink: #8f6215;
+  --color-risk: #c4453f; /* flagged / at risk */
+  --color-risk-soft: #f7e4e3;
+  --color-risk-ink: #97302b;
+
+  /* Radii */
+  --radius-lg: 18px; /* large cards */
+  --radius-md: 12px; /* medium elements */
+  --radius-sm: 8px; /* small elements */
+
+  /* Elevation — soft, iOS-modern */
+  --shadow-card: 0 1px 2px rgba(20, 23, 31, 0.04), 0 8px 20px rgba(20, 23, 31, 0.05);
+  --shadow-pop: 0 4px 12px rgba(20, 23, 31, 0.08), 0 16px 40px rgba(20, 23, 31, 0.12);
+
+  --font-sans: var(--font-poppins);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Semibold (600) is the maximum weight anywhere. Clamp anything heavier. */
+b,
+strong,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+}
+
+/* Thin, consistent focus ring for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--color-vista);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-amande);
+  color: var(--color-ink);
+}
