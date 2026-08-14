@@ -3,11 +3,23 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clsx } from "@/lib/clsx";
+import { analyze } from "@/lib/agent/client";
+import { slugify } from "@/lib/agent/liveStore";
 
 /**
- * Document drop-in zone. Clicking it or dropping files starts the scan.
- * Supports multiple files; the actual upload is mocked — it routes to the
- * live scanning state.
+ * The project a dropped document set is attributed to. A constant because
+ * there is no intake form yet — the backend's /api/projects/analyze takes a
+ * name and location and nothing in the UI collects them. The name must
+ * slugify to a known project id, so the scan lands on a real project view.
+ */
+const DEFAULT_PROJECT = { name: "Project Alpha", location: "West Texas" };
+
+/**
+ * Document drop-in zone. Clicking it or dropping files starts a real pipeline
+ * run against the agent backend and routes to the live scanning view.
+ *
+ * The files themselves are not uploaded — the backend takes filenames and
+ * reads the documents from its own data directory, so only the names travel.
  */
 export function DropZone() {
   const router = useRouter();
@@ -15,11 +27,20 @@ export function DropZone() {
   const [dragging, setDragging] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
 
-  function start(files?: FileList | null) {
-    if (files && files.length > 0) {
-      setPicked(Array.from(files).map((f) => f.name));
+  async function start(files?: FileList | null) {
+    const names =
+      files && files.length > 0 ? Array.from(files).map((f) => f.name) : [];
+    if (names.length > 0) setPicked(names);
+
+    try {
+      const { jobId } = await analyze({ ...DEFAULT_PROJECT, docs: names });
+      router.push(
+        `/scanning?job=${jobId}&project=${slugify(DEFAULT_PROJECT.name)}`,
+      );
+    } catch {
+      // Backend down: fall through to the scripted scan so the demo still runs.
+      router.push("/scanning");
     }
-    router.push("/scanning");
   }
 
   return (
@@ -42,7 +63,7 @@ export function DropZone() {
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        start(e.dataTransfer.files);
+        void start(e.dataTransfer.files);
       }}
       className={clsx(
         "flex cursor-pointer flex-col items-center justify-center rounded-[11px] border border-dashed px-6 py-12 text-center transition-colors",
@@ -56,7 +77,7 @@ export function DropZone() {
         type="file"
         multiple
         className="hidden"
-        onChange={(e) => start(e.target.files)}
+        onChange={(e) => void start(e.target.files)}
       />
       <p className="text-base font-medium text-ink">
         Drop due-diligence documents to scan

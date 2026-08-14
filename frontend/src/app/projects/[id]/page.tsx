@@ -2,13 +2,13 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getProjectDetail } from "@/lib/mockData";
+import { useProjectDetail } from "@/lib/agent/useProjectDetail";
 import { ProjectProvider } from "@/components/project/ProjectContext";
 import { ProjectWorkspace } from "@/components/project/ProjectWorkspace";
 
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
-  const detail = getProjectDetail(params.id);
+  const { detail } = useProjectDetail(params.id);
 
   if (!detail) {
     return (
