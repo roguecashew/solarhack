@@ -14,9 +14,10 @@ from pydantic import BaseModel, ValidationError
 
 MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "8"))
 
-# Provider selection: "anthropic" (direct Claude, default) or "openai" — any
-# OpenAI-compatible endpoint, e.g. the Fireworks bridge the Daytona bots use.
-PROVIDER = os.getenv("LLM_PROVIDER", "anthropic")
+# Provider selection: "openai" — any OpenAI-compatible endpoint, DEFAULT: the
+# Fireworks bridge (hackathon.josephbissell.com) the Daytona bots use.
+# "anthropic" routes to direct Claude instead (Kiran's path).
+PROVIDER = os.getenv("LLM_PROVIDER", "openai")
 
 # Claude Opus 5 — the most capable model for long-horizon agentic work, which
 # is what this pipeline is. Override per-role if a cheaper tier suffices.
