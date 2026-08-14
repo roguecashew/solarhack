@@ -4,7 +4,8 @@ name: Agentic checks
 #  1. toe-guard — comments when this PR touches files that other OPEN PRs
 #     also touch, and warns loudly when contract/schema surfaces are modified.
 #  2. The heavy gates (schema validation, Sentinel conformance, freshness)
-#     live in ci.yml; this workflow is advisory-but-loud.
+#     live in ci.yml; this workflow is advisory — it must never block a PR,
+#     so every API phase degrades to a warning instead of a failure.
 
 on:
   pull_request:
@@ -13,7 +14,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
   issues: write
 
 concurrency:
@@ -31,31 +32,49 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const myNumber = context.payload.pull_request.number;
+            const notes = [];
 
-            const myFiles = (await github.paginate(
-              github.rest.pulls.listFiles, { owner, repo, pull_number: myNumber, per_page: 100 }
-            )).map(f => f.filename);
-
-            // ---- 1. overlap with other open PRs --------------------------
-            const prs = await github.paginate(
-              github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 }
-            );
-            const overlaps = [];
-            for (const pr of prs) {
-              if (pr.number === myNumber) continue;
-              const files = (await github.paginate(
-                github.rest.pulls.listFiles, { owner, repo, pull_number: pr.number, per_page: 100 }
+            // ---- my changed files -----------------------------------------
+            let myFiles = [];
+            try {
+              myFiles = (await github.paginate(
+                github.rest.pulls.listFiles, { owner, repo, pull_number: myNumber, per_page: 100 }
               )).map(f => f.filename);
-              const both = myFiles.filter(f => files.includes(f));
-              if (both.length) overlaps.push({ number: pr.number, title: pr.title, both });
+            } catch (e) {
+              notes.push(`could not list this PR's files: ${e.message}`);
+              core.warning(notes[notes.length - 1]);
             }
 
-            // ---- 2. contract/schema surfaces -----------------------------
+            // ---- 1. overlap with other open PRs ---------------------------
+            const overlaps = [];
+            try {
+              const prs = await github.paginate(
+                github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 }
+              );
+              for (const pr of prs) {
+                if (pr.number === myNumber) continue;
+                try {
+                  const files = (await github.paginate(
+                    github.rest.pulls.listFiles, { owner, repo, pull_number: pr.number, per_page: 100 }
+                  )).map(f => f.filename);
+                  const both = myFiles.filter(f => files.includes(f));
+                  if (both.length) overlaps.push({ number: pr.number, title: pr.title, both });
+                } catch (e) {
+                  notes.push(`could not read files of PR #${pr.number}: ${e.message}`);
+                }
+              }
+            } catch (e) {
+              notes.push(`could not list open PRs: ${e.message}`);
+              core.warning(notes[notes.length - 1]);
+            }
+
+            // ---- 2. contract/schema surfaces ------------------------------
             const CONTRACT = [
               'frontend/src/lib/types.ts',
               'frontend/src/lib/mockData.ts',
               'agent_backend/schemas.py',
               'agent_backend/sentinel_adapter.py',
+              'frontend/src/lib/agent/adapter.ts',
               'scripts/validate-sentinel.mjs',
             ];
             const touchedContract = myFiles.filter(f =>
@@ -86,6 +105,16 @@ jobs:
               body += touchedContract.map(f => `- \`${f}\``).join('\n');
             }
 
-            await github.rest.issues.createComment({
-              owner, repo, issue_number: myNumber, body,
-            });
+            if (notes.length) {
+              body += '\n\n<sub>⚠️ partial run: ' + notes.join('; ') + ' — some checks were skipped due to API/permission limits.</sub>';
+            }
+
+            // ---- post (never fail the job on comment errors) ---------------
+            try {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: myNumber, body,
+              });
+            } catch (e) {
+              core.warning(`toe-guard could not comment on the PR: ${e.message}`);
+              core.notice(body, { title: 'Toe-guard (comment failed, inline instead)' });
+            }
