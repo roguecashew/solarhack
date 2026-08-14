@@ -22,6 +22,12 @@
 - Agents never emit `riskScore`, `severity`, `id`, or any `FactorScore` field. Code derives all of them.
 - Every module is ESM (`"type": "module"`). Test files are `*.test.ts` beside their source.
 
+**Anthropic API constraints that shape this package** (confirmed against the TypeScript SDK docs):
+
+- The Anthropic path consumes Zod **directly** via `zodOutputFormat(Schema)` from `@anthropic-ai/sdk/helpers/zod`. `jsonschema.ts` (Task 8) is therefore a *provider-agnostic secondary* export, not the primary contract — build it, but don't treat it as the path the agent layer will use.
+- Structured outputs do **not** support `minLength` / `maxLength` / `minimum` / `maximum`. The SDK strips those keywords from the schema it sends and validates them client-side. So `likelihood: z.int().min(1).max(5)` constrains the *parse*, not the *generation* — an agent can return `7` and the parse fails. Schemas must therefore stay strict (the bound is the point), and the backend owns the retry. This is why `parseRunEvent` returns `null` rather than throwing.
+- Citations (`citations: {enabled: true}`) and `output_config.format` are mutually exclusive — combining them returns a 400. Extraction is consequently two-pass in the backend: a citations-enabled pass yields API-provided `page_location` values, then a structured pass normalizes them into `Claim`s. `Locator.pdf_page` therefore carries a *verified* page number, which is what makes the evidence drawer trustworthy.
+
 **Deviations from the spec**, both flagged for review before execution:
 
 1. The `scores.updated` event is dropped from `RunEvent`. The reducer derives `FactorScore[]` from `state.findings` using the same `scoreFactors` the server would call, and derives `confidence` from `AgentState.status`. A transmitted score could only agree with the derived one or corrupt it.
