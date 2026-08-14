@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clsx } from "@/lib/clsx";
-import { analyze } from "@/lib/agent/client";
+import { AGENT_API, analyze } from "@/lib/agent/client";
 import { slugify } from "@/lib/agent/liveStore";
 
 /**
@@ -14,12 +14,22 @@ import { slugify } from "@/lib/agent/liveStore";
  */
 const DEFAULT_PROJECT = { name: "Project Alpha", location: "West Texas" };
 
+/** Sends the actual file bytes to the backend before the run starts. */
+async function uploadFiles(files: File[]): Promise<string[]> {
+  const form = new FormData();
+  files.forEach((f) => form.append("files", f));
+  const res = await fetch(`${AGENT_API}/api/uploads`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error(`upload failed: ${res.status}`);
+  return ((await res.json()) as { files: string[] }).files;
+}
+
 /**
- * Document drop-in zone. Clicking it or dropping files starts a real pipeline
- * run against the agent backend and routes to the live scanning view.
- *
- * The files themselves are not uploaded — the backend takes filenames and
- * reads the documents from its own data directory, so only the names travel.
+ * Document drop-in zone. Clicking it or dropping files uploads the documents
+ * to the agent backend, starts a real pipeline run against them, and routes
+ * to the live scanning view.
  */
 export function DropZone() {
   const router = useRouter();
@@ -28,12 +38,14 @@ export function DropZone() {
   const [picked, setPicked] = useState<string[]>([]);
 
   async function start(files?: FileList | null) {
-    const names =
-      files && files.length > 0 ? Array.from(files).map((f) => f.name) : [];
-    if (names.length > 0) setPicked(names);
+    const list = files && files.length > 0 ? Array.from(files) : [];
+    if (list.length > 0) setPicked(list.map((f) => f.name));
 
     try {
-      const { jobId } = await analyze({ ...DEFAULT_PROJECT, docs: names });
+      // Upload the bytes first; the pipeline then reads the real documents,
+      // not just their names.
+      const docs = list.length > 0 ? await uploadFiles(list) : [];
+      const { jobId } = await analyze({ ...DEFAULT_PROJECT, docs });
       router.push(
         `/scanning?job=${jobId}&project=${slugify(DEFAULT_PROJECT.name)}`,
       );

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import uuid
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ from .agents.base import Agent
 from .agents.roles import ANALYST, ROLE_TOOLS
 from .pipeline import run_pipeline
 from .schemas import ChatAnswer, Report
+from .tools import DOC_DIR
 
 app = FastAPI(title="Red Flag Agent Backend")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -38,6 +40,24 @@ class AskRequest(BaseModel):
     question: str
 
 
+ALLOWED_UPLOAD = re.compile(r"\.(pdf|xlsx|csv|docx|txt)$", re.IGNORECASE)
+
+
+@app.post("/api/uploads")
+async def uploads(files: list[UploadFile] = File(...)):
+    """Receive the actual dossier files (multipart). Saved into the document
+    directory the extractors read, so a subsequent /analyze with the returned
+    filenames processes the real uploaded bytes."""
+    saved = []
+    for f in files:
+        name = Path(f.filename or "").name  # strip any client-supplied path
+        if not name or not ALLOWED_UPLOAD.search(name):
+            continue
+        (DOC_DIR / name).write_bytes(await f.read())
+        saved.append(name)
+    return {"files": saved}
+
+
 @app.post("/api/projects/analyze")
 async def analyze(req: AnalyzeRequest):
     job_id = uuid.uuid4().hex[:12]
@@ -49,7 +69,7 @@ async def analyze(req: AnalyzeRequest):
             queue.put_nowait(msg)
         try:
             report = await run_pipeline(req.name, req.location, req.docs, on_status=status)
-            (STORE / f"{job_id}.json").write_text(report.model_dump_json(indent=2))
+            (STORE / f"{job_id}.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
             queue.put_nowait("__DONE__")
         except Exception as e:
             queue.put_nowait(f"__ERROR__ {e}")
@@ -73,7 +93,7 @@ async def stream(job_id: str):
 
 @app.get("/api/reports/{job_id}")
 async def get_report(job_id: str):
-    return json.loads((STORE / f"{job_id}.json").read_text())
+    return json.loads((STORE / f"{job_id}.json").read_text(encoding="utf-8"))
 
 
 @app.post("/api/reports/{report_id}/ask")
@@ -88,7 +108,7 @@ async def ask(report_id: str, req: AskRequest):
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"unknown report {report_id}")
 
-    report = Report.model_validate_json(path.read_text())
+    report = Report.model_validate_json(path.read_text(encoding="utf-8"))
 
     ask_id = uuid.uuid4().hex[:12]
     queue: asyncio.Queue = asyncio.Queue()
@@ -122,7 +142,7 @@ async def get_answer(ask_id: str):
 @app.get("/api/projects")
 async def portfolio():
     """Portfolio dashboard: every completed report, worst first."""
-    reports = [Report.model_validate_json(p.read_text()) for p in STORE.glob("*.json")]
+    reports = [Report.model_validate_json(p.read_text(encoding="utf-8")) for p in STORE.glob("*.json")]
     reports.sort(key=lambda r: r.readiness)
     return [
         {"project": r.project, "location": r.location, "readiness": r.readiness,

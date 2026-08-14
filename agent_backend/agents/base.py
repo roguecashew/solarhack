@@ -3,6 +3,7 @@ agent emits its contract JSON. Every specialist agent uses this exact loop
 with a different role prompt, tool whitelist, and output schema."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -165,7 +166,7 @@ class Agent:
                 self.on_status(f"[{self.name}] {fn_name}({json.dumps(args, default=str)[:80]})")
                 try:
                     output = (
-                        self.tools[fn_name](**args)
+                        await asyncio.to_thread(self.tools[fn_name], **args)
                         if fn_name in self.tools
                         else f"unknown tool {fn_name}"
                     )
@@ -231,7 +232,7 @@ class Agent:
                 is_error = False
                 try:
                     output = (
-                        self.tools[call.name](**args)
+                        await asyncio.to_thread(self.tools[call.name], **args)
                         if call.name in self.tools
                         else f"unknown tool {call.name}"
                     )

@@ -66,3 +66,27 @@ jobs:
         run: node scripts/validate-sentinel.mjs
       - name: TS and Python adapters are in lockstep
         run: node scripts/test-adapter-parity.mjs
+
+  e2e:
+    name: E2E (upload → analyze → SSE → portfolio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: agent_backend/requirements.txt
+      - run: pip install -r agent_backend/requirements.txt
+      - name: Start the agent backend
+        run: |
+          python -m uvicorn agent_backend.main:app --port 8000 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/api/projects > /dev/null && exit 0
+            sleep 1
+          done
+          echo "backend never came up"; exit 1
+      - name: Run E2E
+        env:
+          E2E_SKIP_FRONTEND: "1"
+        run: python scripts/e2e.py

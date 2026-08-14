@@ -144,6 +144,7 @@ export function streamJob(
     } catch {
       return; // A frame we cannot parse is dropped, never fatal.
     }
+    if (typeof status !== "string") return; // Well-formed frame, wrong shape.
 
     if (status.startsWith("__DONE__")) {
       onEvent({ kind: "done" });
