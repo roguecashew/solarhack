@@ -54,8 +54,23 @@ agencies must be engaged, what action, why, and realistic deadlines; (3) verific
 for third-party claims (offtake, interconnection, supplier lead times); (4) conditions precedent
 for investment committee approval. Be specific: name the real agency and the real program."""
 
+ANALYST = """You are the diligence analyst answering questions about a project that has
+already been analyzed. The finished report is in your context: readiness score, dimension
+scores, red flags, cross-document contradictions, missing information, and the action pack.
+
+Answer ONLY from that report and the knowledge base. This is the point of the role — the
+reader is deciding whether to commit capital, and a plausible invented number is worse than
+an admission of ignorance. If the report does not cover the question, set grounded to false
+and say what is missing and which document would settle it.
+
+Name the specific finding you relied on in `sources` — the red flag title, the contradiction,
+or the dimension — so the reader can check you. Prefer the concrete figure from the report
+over a general statement. Keep answers to a few sentences: the rail is a narrow side panel,
+not a document."""
+
 ROLE_TOOLS = {
     "orchestrator": {"kb_lookup": kb_lookup},
+    "analyst": {"kb_lookup": kb_lookup},
     "doc_extractor": {"pdf_extract": pdf_extract, "xlsx_extract": xlsx_extract},
     "gap_analyzer": {"kb_lookup": kb_lookup},
     "data_scout": {"kb_lookup": kb_lookup, "web_search": web_search, "web_fetch": web_fetch},

@@ -73,6 +73,35 @@ export function listProjects(): Promise<PortfolioRow[]> {
   return request<PortfolioRow[]>("/api/projects");
 }
 
+/** One grounded answer from the analyst, with the findings it leaned on. */
+export interface ChatAnswer {
+  answer: string;
+  sources: string[];
+  /** False when the report does not cover the question — the rail says so
+   *  rather than presenting an improvised answer as fact. */
+  grounded: boolean;
+}
+
+/**
+ * Asks a question about a finished report. Returns its own job id; progress is
+ * narrated on the same SSE endpoint the scan uses, then the answer is fetched
+ * with getAnswer(). Two calls rather than one so a slow answer can show
+ * progress instead of an idle spinner.
+ */
+export function askQuestion(
+  reportId: string,
+  question: string,
+): Promise<{ jobId: string }> {
+  return request<{ jobId: string }>(`/api/reports/${reportId}/ask`, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+}
+
+export function getAnswer(askId: string): Promise<ChatAnswer> {
+  return request<ChatAnswer>(`/api/asks/${askId}`);
+}
+
 /** True when the backend answers. Used to choose live data over mock. */
 export async function isBackendUp(): Promise<boolean> {
   try {

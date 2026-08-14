@@ -117,6 +117,21 @@ class ActionPack(BaseModel):
     conditions_precedent: list[str] = Field(default_factory=list)
 
 
+class ChatAnswer(BaseModel):
+    """One grounded answer from the Ask rail.
+
+    `sources` is what makes the answer checkable — it names the red flags,
+    contradictions or dimensions the answer leaned on, so the UI can point the
+    reader back at the finding instead of asking them to trust prose.
+    """
+
+    answer: str
+    sources: list[str] = Field(default_factory=list)
+    # False when the report simply does not cover the question. The rail says
+    # so plainly rather than letting the model improvise.
+    grounded: bool = True
+
+
 class Report(BaseModel):
     project: str
     location: str

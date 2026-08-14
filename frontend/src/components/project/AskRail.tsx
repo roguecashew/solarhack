@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { clsx } from "@/lib/clsx";
 import type { ChatMessage } from "@/lib/types";
+import {
+  askQuestion,
+  getAnswer,
+  streamJob,
+  type ChatAnswer,
+} from "@/lib/agent/client";
+import { getLiveRun } from "@/lib/agent/liveStore";
 import { useProject } from "./ProjectContext";
 
 const FALLBACK_ANSWER =
@@ -40,13 +47,9 @@ export function AskRail({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, pending]);
 
-  function ask(question: string) {
-    const text = question.trim();
-    if (!text) return;
-
-    setMessages((prev) => [...prev, { role: "user", text }]);
-    setPending(true);
-
+  /** Answers from the scripted chips — the path used when no agent run backs
+   *  this project, and the fallback when the backend cannot be reached. */
+  function answerFromScript(text: string) {
     const match = suggestedQuestions.find(
       (q) => q.question.trim().toLowerCase() === text.toLowerCase(),
     );
@@ -58,8 +61,55 @@ export function AskRail({
     }, 900);
   }
 
+  async function ask(question: string) {
+    const text = question.trim();
+    if (!text) return;
+
+    setMessages((prev) => [...prev, { role: "user", text }]);
+    setPending(true);
+
+    const live = getLiveRun(project.id);
+    if (!live) {
+      answerFromScript(text);
+      return;
+    }
+
+    try {
+      // The analyst answers from this project's finished report, so the
+      // question can be phrased any way — no chip matching involved.
+      const { jobId } = await askQuestion(live.jobId, text);
+      const answer = await new Promise<ChatAnswer>((resolve, reject) => {
+        const close = streamJob(jobId, (event) => {
+          if (event.kind === "error") {
+            close();
+            reject(new Error(event.message));
+          } else if (event.kind === "done") {
+            getAnswer(jobId).then(resolve, reject);
+          }
+          // status frames are the analyst narrating; the rail shows a typing
+          // indicator rather than its internal steps.
+        });
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: answer.grounded
+            ? answer.answer
+            : `${answer.answer}\n\n(Not covered by this project's report.)`,
+        },
+      ]);
+      setPending(false);
+    } catch {
+      // Backend unreachable or the analyst failed: fall back to the script so
+      // the rail always answers something.
+      answerFromScript(text);
+    }
+  }
+
   function submit() {
-    ask(draft);
+    void ask(draft);
     setDraft("");
   }
 
@@ -185,7 +235,7 @@ export function AskRail({
               <button
                 key={q.question}
                 type="button"
-                onClick={() => ask(q.question)}
+                onClick={() => void ask(q.question)}
                 className="cursor-pointer rounded-full border border-hairline bg-surface-2 px-[10px] py-[6px] text-[10.5px] text-muted hover:border-oxford hover:text-ink"
               >
                 {q.question}
