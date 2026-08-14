@@ -16,7 +16,11 @@
         "score": 12.0,
         "band": "risk",
         "unlocked": false,
-        "subAgents": [],
+        "subAgents": [
+          "extractor:land-docs",
+          "scout:zoning",
+          "researcher:land_use"
+        ],
         "factors": [
           {
             "id": "land-flag-0",
@@ -52,7 +56,11 @@
         "score": 8.0,
         "band": "risk",
         "unlocked": false,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:state_law",
+          "researcher:federal_law",
+          "researcher:ecology_epa"
+        ],
         "factors": [
           {
             "id": "law-flag-0",
@@ -108,7 +116,10 @@
         "score": 22.0,
         "band": "risk",
         "unlocked": false,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:financials",
+          "cross-examiner"
+        ],
         "factors": [
           {
             "id": "finance-flag-0",
@@ -144,7 +155,9 @@
         "score": 82.0,
         "band": "strong",
         "unlocked": true,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:supply_chain"
+        ],
         "factors": [
           {
             "id": "materials-flag-0",
@@ -161,7 +174,10 @@
         "score": 80.0,
         "band": "strong",
         "unlocked": true,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:demand",
+          "researcher:interconnection"
+        ],
         "factors": [
           {
             "id": "demand-flag-0",
@@ -185,7 +201,7 @@
       "sources": [
         {
           "title": "uscode.house.gov \u00a7460qqq",
-          "location": "",
+          "location": "zoning",
           "highlight": "Sloan Canyon NCA Act, PL 107-282 (2002); 300+ petroglyph panels, NRHP-listed site",
           "extractedLabel": "zoning",
           "extractedValue": "Gating criterion \u2014 applied before economics"
@@ -201,7 +217,7 @@
       "sources": [
         {
           "title": "federalregister.gov 2024-30953",
-          "location": "",
+          "location": "federal_law",
           "highlight": "89 FR 105623 (Dec 27, 2024); ~131M acres excluded; ROD amended the Sloan Canyon NCA RMP itself",
           "extractedLabel": "federal_law",
           "extractedValue": "FLPMA \u00a7202 plan-conformance \u2014 application rejected at screening"
@@ -217,14 +233,14 @@
       "sources": [
         {
           "title": "govinfo.gov",
-          "location": "",
+          "location": "federal_law",
           "highlight": "Sloan Canyon Conservation and Lateral Pipeline Act (H.R. 972, Titus); 48,438 \u2192 57,728 acres; only development authorized is a water pipeline ROW",
           "extractedLabel": "federal_law",
           "extractedValue": "GovInfo PLAW-119publ91 \u2014 fact-checked REAL"
         },
         {
           "title": "govtrack.us H.R. 972",
-          "location": "",
+          "location": "federal_law",
           "highlight": "Sloan Canyon Conservation and Lateral Pipeline Act (H.R. 972, Titus); 48,438 \u2192 57,728 acres; only development authorized is a water pipeline ROW",
           "extractedLabel": "federal_law",
           "extractedValue": "GovInfo PLAW-119publ91 \u2014 fact-checked REAL"
@@ -240,7 +256,7 @@
       "sources": [
         {
           "title": "09_Site_Comparison_B",
-          "location": "",
+          "location": "financials",
           "highlight": "Land option $0.45M + interconnection $1.35M + studies $1.10M + labor $0.90M + commercial $1.00M",
           "extractedLabel": "financials",
           "extractedValue": ""
@@ -249,21 +265,21 @@
     },
     "ev-contradiction-0": {
       "id": "ev-contradiction-0",
-      "factorName": "Cross-document contradiction",
+      "factorName": "Contradiction: Proximity to operating solar is not evidence of buildability",
       "kind": "contradiction",
       "summary": "Proximity to operating solar is not evidence of buildability across a land-management boundary",
       "confidence": "High confidence",
       "sources": [
         {
           "title": "developer map",
-          "location": "",
+          "location": "cross-document check",
           "highlight": "Developer site-control map labels tract 'Eldorado East Expansion' assuming solar allowed",
           "extractedLabel": "claim",
           "extractedValue": "Developer site-control map labels tract 'Eldorado East Expansion' assuming solar allowed"
         },
         {
           "title": "16 U.S.C. \u00a7460qqq-2(b) as amended by PL 119-91",
-          "location": "",
+          "location": "cross-document check",
           "highlight": "Geospatial/legal cross-check: footprint inside Sloan Canyon NCA boundary",
           "extractedLabel": "claim",
           "extractedValue": "Geospatial/legal cross-check: footprint inside Sloan Canyon NCA boundary"
@@ -281,27 +297,32 @@
             "label": "16 U.S.C. \u00a7460qqq-2(b) as amended by PL 119-91",
             "a": "Geospatial/legal cross-check: footprint inside Sloan Canyon NCA boundary",
             "b": ""
+          },
+          {
+            "label": "Conflict",
+            "a": "",
+            "b": "contradictory"
           }
         ]
       }
     },
     "ev-contradiction-1": {
       "id": "ev-contradiction-1",
-      "factorName": "Cross-document contradiction",
+      "factorName": "Contradiction: Model assumes a developable site; schedule and spend should ",
       "kind": "contradiction",
       "summary": "Model assumes a developable site; schedule and spend should be frozen pending re-site",
       "confidence": "High confidence",
       "sources": [
         {
           "title": "financial workbook (copied from Parcel A)",
-          "location": "",
+          "location": "cross-document check",
           "highlight": "Financial model carries Q4 2029 COD + $4.8M spend",
           "extractedLabel": "claim",
           "extractedValue": "Financial model carries Q4 2029 COD + $4.8M spend"
         },
         {
           "title": "NCA statute + 2024 ROD",
-          "location": "",
+          "location": "cross-document check",
           "highlight": "Land evidence: no lawful development path exists on this site",
           "extractedLabel": "claim",
           "extractedValue": "Land evidence: no lawful development path exists on this site"
@@ -319,48 +340,84 @@
             "label": "NCA statute + 2024 ROD",
             "a": "Land evidence: no lawful development path exists on this site",
             "b": ""
+          },
+          {
+            "label": "Conflict",
+            "a": "",
+            "b": "contradictory"
           }
         ]
       }
     }
   },
-  "timeline": [],
+  "timeline": [
+    {
+      "label": "BLM Las Vegas Field Office / Boulder City \u2014 Scope re-site options: Eldorado Vall",
+      "date": "2026-10-01",
+      "kind": "milestone"
+    },
+    {
+      "label": "ITC deadline",
+      "date": "2030-12-31",
+      "kind": "deadline"
+    }
+  ],
   "documents": [],
   "priorityActions": [
     {
-      "id": "pa-0",
+      "id": "pa-1",
       "rank": 1,
       "title": "Stop all discretionary spend immediately",
       "detail": "Stop all discretionary spend immediately",
       "impact": "high",
-      "scoreDelta": 0
+      "scoreDelta": 6
     },
     {
-      "id": "pa-1",
+      "id": "pa-2",
       "rank": 2,
       "title": "Re-site decision before any further interconnection/permitting expenditure",
       "detail": "Re-site decision before any further interconnection/permitting expenditure",
       "impact": "high",
-      "scoreDelta": 0
+      "scoreDelta": 6
     },
     {
-      "id": "pa-r0",
+      "id": "pa-3",
       "rank": 3,
       "title": "Full study inventory with transferability assessment",
       "detail": "Full study inventory with transferability assessment",
       "impact": "medium",
-      "scoreDelta": 0
+      "scoreDelta": 3
     },
     {
-      "id": "pa-r1",
+      "id": "pa-4",
       "rank": 4,
       "title": "Interconnection deposit terms (refundable? transferable to Dry Lake POI?)",
       "detail": "Interconnection deposit terms (refundable? transferable to Dry Lake POI?)",
       "impact": "medium",
-      "scoreDelta": 0
+      "scoreDelta": 3
     }
   ],
-  "projectedScoreAfterMitigation": 38.0,
-  "suggestedQuestions": [],
-  "chatHistory": []
+  "projectedScoreAfterMitigation": 66.0,
+  "suggestedQuestions": [
+    {
+      "question": "What's the top item to clear next?",
+      "answer": {
+        "role": "assistant",
+        "text": "Stop discretionary spend, preserve transferable studies, and re-site the footprint to Eldorado Valley private/city lands or Dry Lake SEZ \u2014 land designation is a gating criterion that no PPA price, irradiance, or schedule can cure"
+      }
+    },
+    {
+      "question": "Why is the activation score 38?",
+      "answer": {
+        "role": "assistant",
+        "text": "2 critical red flags and 2 cross-document contradictions. Weakest pillars: Law 8, Land 12."
+      }
+    }
+  ],
+  "chatHistory": [
+    {
+      "role": "assistant",
+      "text": "I've completed diligence on RAI Solar B \u2014 'Eldorado East Expansion' 180 MWac. Activation score 38/100 \u2014 decision: Hold. 2 critical flags, 2 cross-document contradictions, 3 open information requests. Ask me what to prioritize."
+    }
+  ]
 }

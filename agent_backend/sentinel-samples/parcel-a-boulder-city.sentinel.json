@@ -16,7 +16,11 @@
         "score": 78.0,
         "band": "strong",
         "unlocked": true,
-        "subAgents": [],
+        "subAgents": [
+          "extractor:land-docs",
+          "scout:zoning",
+          "researcher:land_use"
+        ],
         "factors": [
           {
             "id": "land-flag-0",
@@ -41,7 +45,11 @@
         "score": 72.0,
         "band": "strong",
         "unlocked": true,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:state_law",
+          "researcher:federal_law",
+          "researcher:ecology_epa"
+        ],
         "factors": [
           {
             "id": "law-flag-0",
@@ -66,7 +74,10 @@
         "score": 75.0,
         "band": "strong",
         "unlocked": true,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:financials",
+          "cross-examiner"
+        ],
         "factors": [
           {
             "id": "finance-flag-0",
@@ -123,7 +134,9 @@
         "score": 69.0,
         "band": "watch",
         "unlocked": false,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:supply_chain"
+        ],
         "factors": [
           {
             "id": "materials-flag-0",
@@ -148,7 +161,10 @@
         "score": 81.0,
         "band": "strong",
         "unlocked": true,
-        "subAgents": [],
+        "subAgents": [
+          "researcher:demand",
+          "researcher:interconnection"
+        ],
         "factors": [
           {
             "id": "demand-flag-0",
@@ -191,21 +207,21 @@
       "sources": [
         {
           "title": "KPMG TNF 25243",
-          "location": "",
+          "location": "financials",
           "highlight": "OBBBA terminates solar \u00a748E for BOC after 7/4/2026 with PIS after 12/31/2027; Notice 2025-42 removed the 5% safe harbor for >1.5 MW solar",
           "extractedLabel": "financials",
           "extractedValue": "30% ITC on ~$200M PV CAPEX"
         },
         {
           "title": "Baker Tilly",
-          "location": "",
+          "location": "financials",
           "highlight": "OBBBA terminates solar \u00a748E for BOC after 7/4/2026 with PIS after 12/31/2027; Notice 2025-42 removed the 5% safe harbor for >1.5 MW solar",
           "extractedLabel": "financials",
           "extractedValue": "30% ITC on ~$200M PV CAPEX"
         },
         {
           "title": "Pierce Atwood",
-          "location": "",
+          "location": "financials",
           "highlight": "OBBBA terminates solar \u00a748E for BOC after 7/4/2026 with PIS after 12/31/2027; Notice 2025-42 removed the 5% safe harbor for >1.5 MW solar",
           "extractedLabel": "financials",
           "extractedValue": "30% ITC on ~$200M PV CAPEX"
@@ -221,7 +237,7 @@
       "sources": [
         {
           "title": "LBNL Utility-Scale Solar 2024",
-          "location": "",
+          "location": "financials",
           "highlight": "$1.12/Wac matches PV-only benchmark; realistic combined PV+BESS figure $240-280M",
           "extractedLabel": "financials",
           "extractedValue": "LBNL 2023 median $1.43/Wac; 4-hr BESS $250-400/kW"
@@ -237,7 +253,7 @@
       "sources": [
         {
           "title": "NV Energy OASIS (NEVP)",
-          "location": "",
+          "location": "interconnection",
           "highlight": "No queue position, cluster phase, or network-upgrade allocation in dossier; FERC Order 2023 cluster timelines in the West running long",
           "extractedLabel": "interconnection",
           "extractedValue": "Cluster study must complete ~mid-2027 for Q4 2029 COD"
@@ -246,21 +262,21 @@
     },
     "ev-contradiction-0": {
       "id": "ev-contradiction-0",
-      "factorName": "Cross-document contradiction",
+      "factorName": "Contradiction: Scope of the $202M is ambiguous; as a combined figure it is ",
       "kind": "contradiction",
       "summary": "Scope of the $202M is ambiguous; as a combined figure it is not credible",
       "confidence": "High confidence",
       "sources": [
         {
           "title": "08_Site_Comparison_A",
-          "location": "",
+          "location": "cross-document check",
           "highlight": "$202M covers EPC + owner costs (incl. optional BESS?)",
           "extractedLabel": "claim",
           "extractedValue": "$202M covers EPC + owner costs (incl. optional BESS?)"
         },
         {
           "title": "LBNL/NREL benchmarks",
-          "location": "",
+          "location": "cross-document check",
           "highlight": "PV-only EPC at market is ~$200M; PV+80/320 BESS is $240-280M",
           "extractedLabel": "claim",
           "extractedValue": "PV-only EPC at market is ~$200M; PV+80/320 BESS is $240-280M"
@@ -278,96 +294,116 @@
             "label": "LBNL/NREL benchmarks",
             "a": "PV-only EPC at market is ~$200M; PV+80/320 BESS is $240-280M",
             "b": ""
+          },
+          {
+            "label": "Conflict",
+            "a": "",
+            "b": "contradictory"
           }
         ]
       }
     }
   },
-  "timeline": [],
+  "timeline": [
+    {
+      "label": "Clark County Desert Conservation Program / USFWS \u2014 Book protocol tortoise survey",
+      "date": "2026-09-01",
+      "kind": "milestone"
+    },
+    {
+      "label": "NV Energy (OASIS/NEVP) \u2014 Confirm queue position + cluster study schedule",
+      "date": "2027-01-01",
+      "kind": "milestone"
+    },
+    {
+      "label": "ITC deadline",
+      "date": "2030-12-31",
+      "kind": "deadline"
+    }
+  ],
   "documents": [],
   "priorityActions": [
     {
-      "id": "pa-0",
+      "id": "pa-1",
       "rank": 1,
       "title": "Documented pre-7/4/2026 BOC preserving solar ITC (or re-run economics at 0% PV ITC)",
       "detail": "Documented pre-7/4/2026 BOC preserving solar ITC (or re-run economics at 0% PV ITC)",
       "impact": "high",
-      "scoreDelta": 0
+      "scoreDelta": 6,
+      "evidenceLink": "ev-finance-0"
     },
     {
-      "id": "pa-1",
+      "id": "pa-2",
       "rank": 2,
       "title": "Network upgrade allocation \u2264 $24M trigger or re-model",
       "detail": "Network upgrade allocation \u2264 $24M trigger or re-model",
       "impact": "high",
-      "scoreDelta": 0
+      "scoreDelta": 6,
+      "evidenceLink": "ev-demand-2"
     },
     {
-      "id": "pa-2",
+      "id": "pa-3",
       "rank": 3,
       "title": "Executed offtake or lender-accepted merchant case",
       "detail": "Executed offtake or lender-accepted merchant case",
       "impact": "high",
-      "scoreDelta": 0
+      "scoreDelta": 6
     },
     {
-      "id": "pa-3",
+      "id": "pa-4",
       "rank": 4,
       "title": "EPC scope reconciled to $240-280M if storage included",
       "detail": "EPC scope reconciled to $240-280M if storage included",
       "impact": "high",
-      "scoreDelta": 0
+      "scoreDelta": 6
     },
     {
-      "id": "pa-r0",
+      "id": "pa-5",
       "rank": 5,
       "title": "ITC/BOC evidence package",
       "detail": "ITC/BOC evidence package",
       "impact": "medium",
-      "scoreDelta": 0
+      "scoreDelta": 3
     },
     {
-      "id": "pa-r1",
+      "id": "pa-6",
       "rank": 6,
       "title": "Title + zoning APN verification",
       "detail": "Title + zoning APN verification",
       "impact": "medium",
-      "scoreDelta": 0
+      "scoreDelta": 3
     },
     {
-      "id": "pa-r2",
+      "id": "pa-7",
       "rank": 7,
       "title": "Interconnection study + upgrade allocation",
       "detail": "Interconnection study + upgrade allocation",
       "impact": "medium",
-      "scoreDelta": 0
-    },
-    {
-      "id": "pa-r3",
-      "rank": 8,
-      "title": "EPC scope split + transformer reservation",
-      "detail": "EPC scope split + transformer reservation",
-      "impact": "medium",
-      "scoreDelta": 0
-    },
-    {
-      "id": "pa-r4",
-      "rank": 9,
-      "title": "Survey reports + water supply letter",
-      "detail": "Survey reports + water supply letter",
-      "impact": "medium",
-      "scoreDelta": 0
-    },
-    {
-      "id": "pa-r5",
-      "rank": 10,
-      "title": "Offtake strategy memo",
-      "detail": "Offtake strategy memo",
-      "impact": "medium",
-      "scoreDelta": 0
+      "scoreDelta": 3,
+      "evidenceLink": "ev-demand-2"
     }
   ],
-  "projectedScoreAfterMitigation": 75.0,
-  "suggestedQuestions": [],
-  "chatHistory": []
+  "projectedScoreAfterMitigation": 81.0,
+  "suggestedQuestions": [
+    {
+      "question": "What's the top item to clear next?",
+      "answer": {
+        "role": "assistant",
+        "text": "Produce the beginning-of-construction evidence package (gating), then initiate the Boulder City development agreement and NV Energy cluster study in parallel"
+      }
+    },
+    {
+      "question": "Why is the activation score 75?",
+      "answer": {
+        "role": "assistant",
+        "text": "1 critical red flags and 1 cross-document contradictions. Weakest pillars: Materials 69, Law 72."
+      }
+    }
+  ],
+  "chatHistory": [
+    {
+      "role": "assistant",
+      "text": "I've completed diligence on RAI Solar A \u2014 180 MWac PV + 80 MW/320 MWh BESS. Activation score 75/100 \u2014 decision: Proceed. 1 critical flags, 1 cross-document contradictions, 7 open information requests. Ask me what to prioritize."
+    }
+  ]
 }
