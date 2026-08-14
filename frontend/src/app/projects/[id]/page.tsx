@@ -1,21 +1,37 @@
 "use client";
 
+import { useState } from "react";
 import { useProject } from "@/components/project/ProjectContext";
-import { Card } from "@/components/ui/Card";
-import { DonutRing } from "@/components/ui/DonutRing";
+import { SentinelRail } from "@/components/assistant/SentinelRail";
+import { ActivationScore } from "@/components/overview/ActivationScore";
+import { PillarCards } from "@/components/overview/PillarCards";
+import { FactorDetail } from "@/components/overview/FactorDetail";
+import type { PillarName } from "@/lib/types";
 
-// PLACEHOLDER — Project Overview tab. Owned by workstream B (replace).
+// Project Overview tab — the primary screen for a project.
 export default function OverviewPage() {
   const { project } = useProject();
+  const [selectedPillar, setSelectedPillar] = useState<PillarName | null>(null);
+
+  const handleSelect = (name: PillarName) => {
+    setSelectedPillar((current) => (current === name ? null : name));
+  };
+
   return (
-    <Card>
-      <div className="flex items-center gap-6">
-        <DonutRing value={project.activationScore} band={project.band} />
-        <div>
-          <p className="text-sm text-muted">Activation score</p>
-          <p className="mt-1 max-w-md text-ink">{project.scoreReason}</p>
-        </div>
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="space-y-6">
+        <ActivationScore project={project} />
+        <PillarCards
+          pillars={project.pillars}
+          selected={selectedPillar}
+          onSelect={handleSelect}
+        />
+        <FactorDetail pillars={project.pillars} selected={selectedPillar} />
       </div>
-    </Card>
+
+      <div className="lg:sticky lg:top-6 lg:self-start">
+        <SentinelRail />
+      </div>
+    </div>
   );
 }
