@@ -15,7 +15,6 @@ import {
 } from "@/components/scanning/scanScript";
 
 const TARGET = "/projects/project-alpha";
-const DOC_COUNT = 9;
 
 export default function ScanningPage() {
   const router = useRouter();
@@ -64,14 +63,14 @@ export default function ScanningPage() {
   return (
     <PageContainer className="max-w-3xl">
       <div className="mb-6">
-        <p className="text-sm text-brand">Solar Alpha</p>
+        <p className="text-sm text-vista">Project Alpha</p>
         <h1 className="mt-1 text-2xl font-semibold text-ink">
           {done ? "Analysis complete" : "Reading the document set"}
         </h1>
         <p className="mt-1 text-muted">
           {done
-            ? "Sentinel finished all nine documents. Opening the project."
-            : `Sentinel is reading ${DOC_COUNT} due-diligence documents and cross-checking them for contradictions.`}
+            ? "Sentinel finished the document set. Opening the project."
+            : "Sentinel is reading 7 documents and 3 sheets and cross-checking them for contradictions."}
         </p>
       </div>
 

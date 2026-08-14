@@ -45,9 +45,9 @@ export function DropZone() {
         start(e.dataTransfer.files);
       }}
       className={clsx(
-        "flex cursor-pointer flex-col items-center justify-center rounded-[18px] border border-dashed px-6 py-12 text-center transition-colors",
+        "flex cursor-pointer flex-col items-center justify-center rounded-[11px] border border-dashed px-6 py-12 text-center transition-colors",
         dragging
-          ? "border-brand bg-brand-soft"
+          ? "border-hairline bg-select"
           : "border-hairline bg-surface-2 hover:bg-vista-soft",
       )}
     >
@@ -66,7 +66,7 @@ export function DropZone() {
           ? `${picked.length} file${picked.length === 1 ? "" : "s"} selected — starting the scan…`
           : "Add land, legal, financial, materials and offtake files. Sentinel reads the set and flags contradictions across them."}
       </p>
-      <span className="mt-4 inline-flex items-center rounded-full bg-brand px-4 py-2 text-sm font-medium text-white">
+      <span className="mt-4 inline-flex items-center rounded-full bg-ink px-4 py-2 text-sm font-medium text-white">
         Select files
       </span>
     </div>

@@ -2,7 +2,7 @@
 //
 // This is a scripted ANIMATION, not project data — it is intentionally
 // hardcoded here. Each step reveals one reasoning line as the agent "reads"
-// the Solar Alpha document set, grounded in the real findings in mockData.ts.
+// the Project Alpha document set, grounded in the findings in mockData.ts.
 
 export type ScanStepKind = "read" | "flag" | "contradiction" | "score";
 
@@ -21,84 +21,84 @@ export const SCAN_DURATION_MS = 8200;
 
 /** Sub-agents shown activating in sequence beneath the trail. */
 export const SCAN_SUBAGENTS = [
-  "parcel-title-scan",
-  "capex-reconciliation",
+  "site-control-scan",
   "permit-sequence-check",
-  "transformer-leadtime-scan",
-  "offtake-coverage-check",
+  "capex-reconciliation",
+  "supplier-dependency-scan",
+  "interconnection-queue-check",
 ];
 
 export const SCAN_SCRIPT: ScanStep[] = [
   {
     at: 0.02,
-    file: "01_Land_and_Site_Due_Diligence.pdf",
-    line: "Reading 01_Land_and_Site_Due_Diligence.pdf — 14 parcels, 13 under executed site control.",
+    file: "feasibility_study.pdf",
+    line: "Reading feasibility_study.pdf — landowner agreement and interconnection easement executed.",
     kind: "read",
   },
   {
-    at: 0.1,
-    file: "01_Land_and_Site_Due_Diligence.pdf",
-    line: "Flagging Parcel 14 option unsigned — 18 acres on the collector and substation route.",
+    at: 0.12,
+    file: "feasibility_study.pdf",
+    line: "Land secured — site control cleared, no listed species habitat on site.",
+    kind: "read",
+  },
+  {
+    at: 0.22,
+    file: "schedule.pdf",
+    line: "Reading schedule.pdf — construction start scheduled for October 14.",
+    kind: "read",
+  },
+  {
+    at: 0.32,
+    file: "permit_application.pdf",
+    line: "Reading permit_application.pdf — environmental permit approval expected December 8.",
+    kind: "read",
+  },
+  {
+    at: 0.42,
+    file: "permit_application.pdf",
+    line: "Flagging Law — construction begins ~8 weeks before the permit is expected.",
     kind: "flag",
   },
   {
-    at: 0.2,
-    file: "07_Financial_Feasibility_and_Sensitivity_Memo.pdf",
-    line: "Reading 07_Financial_Feasibility_and_Sensitivity_Memo.pdf — base CAPEX $186.0M, project IRR 12.8%.",
+    at: 0.54,
+    file: "feasibility_study.pdf",
+    line: "Reading feasibility_study.pdf — feasibility CAPEX assumed at $42.0M.",
     kind: "read",
   },
   {
-    at: 0.3,
-    file: "06_Materials_Supply_Chain_and_Price_Index.pdf",
-    line: "Cross-checking 06_Materials_Supply_Chain_and_Price_Index.pdf — reconciled CAPEX $199–211M.",
+    at: 0.64,
+    file: "vendor_proposal.pdf",
+    line: "Cross-checking vendor_proposal.pdf — quoted equipment cost implies $51.2M.",
     kind: "read",
   },
   {
-    at: 0.4,
-    file: "06_Materials_Supply_Chain_and_Price_Index.pdf",
-    line: "Contradiction found: model CAPEX $186M vs materials reconciliation $199–211M.",
+    at: 0.72,
+    file: "vendor_proposal.pdf",
+    line: "Contradiction found: CAPEX $42.0M assumed vs $51.2M quoted — a 21.9% variance.",
     kind: "contradiction",
   },
   {
-    at: 0.5,
-    file: "03_Legal_Regulatory_and_Permitting_Memo.pdf",
-    line: "Reading 03_Legal_Regulatory_and_Permitting_Memo.pdf — grading notice-to-proceed Oct 14, 2026.",
-    kind: "read",
-  },
-  {
-    at: 0.58,
-    file: "02_Environmental_Water_and_Biodiversity_Assessment.pdf",
-    line: "Environmental review completes Dec 8, 2026 — construction starts about 7.9 weeks early.",
+    at: 0.8,
+    file: "vendor_proposal.pdf",
+    line: "Watch — single-source equipment vendor with no documented contingency.",
     kind: "flag",
   },
   {
-    at: 0.68,
-    file: "06_Materials_Supply_Chain_and_Price_Index.pdf",
-    line: "Transformer lead time 62 weeks vs 38-week allowance — a 24-week gap to COD.",
-    kind: "flag",
-  },
-  {
-    at: 0.78,
-    file: "05_Demand_and_Offtake_Market_Study",
-    line: "Firm offtake 150 MW vs 200 MW assumed in the model — Utility A holds 60% of capacity.",
-    kind: "contradiction",
-  },
-  {
-    at: 0.86,
-    file: "01_Project_Red_Flag_Risk_Register.xlsx",
-    line: "Reconciling findings across the register — DSCR falls to 1.14x against a 1.25x covenant.",
+    at: 0.88,
+    file: "feasibility_study.pdf",
+    line: "Demand cleared — interconnection queue confirmed for 180 MW, PPA at $38/MWh.",
     kind: "read",
   },
   {
-    at: 0.93,
-    file: "01_Project_Red_Flag_Risk_Register.xlsx",
-    line: "Scoring pillars: land, law, finance, materials, demand.",
+    at: 0.95,
+    file: "geotech_report.pdf",
+    line: "Scoring components: Land, Law, Finance, Materials, Demand…",
     kind: "score",
   },
   {
     at: 0.99,
-    file: "01_Project_Red_Flag_Risk_Register.xlsx",
-    line: "7 critical red flags identified. Activation score 26.",
+    file: "geotech_report.pdf",
+    line: "1 flag open in Law, 2 in watch. Activation Score 62 — at risk.",
     kind: "score",
   },
 ];

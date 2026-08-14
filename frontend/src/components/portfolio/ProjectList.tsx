@@ -30,7 +30,7 @@ function ProjectRow({ project }: { project: Project }) {
       className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-surface-2 sm:flex-row sm:items-center sm:gap-5"
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink group-hover:text-brand">
+        <p className="truncate text-sm font-medium text-ink group-hover:text-vista">
           {project.name}
         </p>
         <p className="mt-0.5 truncate text-xs text-muted">

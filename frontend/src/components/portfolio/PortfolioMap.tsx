@@ -23,11 +23,11 @@ export function PortfolioMap({ projects }: { projects: Project[] }) {
     <Card>
       <h2 className="text-sm font-medium text-ink">Portfolio overview</h2>
       <div
-        className="relative mt-3 overflow-hidden rounded-[12px]"
+        className="relative mt-3 overflow-hidden rounded-[5px]"
         style={{
           height: 220,
           background:
-            "linear-gradient(150deg, var(--color-vista-soft) 0%, var(--color-amande) 100%)",
+            "linear-gradient(150deg, var(--color-vista-soft) 0%, var(--color-surface-2) 100%)",
         }}
       >
         {/* Soft grid to read as a stylized map, not decoration for its own sake. */}

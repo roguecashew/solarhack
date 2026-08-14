@@ -30,7 +30,7 @@ export function InProgressList({ docs }: { docs: RecentDocument[] }) {
         </li>
       ))}
       <li className="border-t border-hairline pt-3">
-        <Link href="/projects" className="text-sm font-medium text-brand">
+        <Link href="/projects" className="text-sm font-medium text-vista">
           View current projects
         </Link>
       </li>

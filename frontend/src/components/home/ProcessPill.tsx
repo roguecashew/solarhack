@@ -4,16 +4,17 @@ import type { RecentDocument } from "@/lib/types";
 type ProcessStatus = RecentDocument["status"];
 
 /**
- * Pill for document PROCESS state (Analyzed / Scanning / Queued). These are
+ * Pill for document process state (Analyzed / Scanning / Queued). These are
  * pipeline states, not risk — so they stay in the structural palette (vista,
- * brand, neutral) and never borrow the status green/amber/red.
+ * neutral grays) and never borrow the status scale (grey / near-black / orange)
+ * or the reserved brand orange.
  */
 const style: Record<
   ProcessStatus,
   { pill: string; dot: string }
 > = {
-  Analyzed: { pill: "bg-vista-soft text-ink", dot: "var(--color-vista)" },
-  Scanning: { pill: "bg-brand-soft text-brand", dot: "var(--color-brand)" },
+  Analyzed: { pill: "bg-surface-2 text-muted", dot: "var(--color-muted)" },
+  Scanning: { pill: "bg-vista-soft text-ink", dot: "var(--color-vista)" },
   Queued: { pill: "bg-surface-2 text-faint", dot: "var(--color-faint)" },
 };
 
