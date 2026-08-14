@@ -75,13 +75,15 @@ over a general statement. Keep answers to a few sentences: the rail is a narrow 
 not a document."""
 
 ROLE_TOOLS = {
-    "orchestrator": {"kb_lookup": kb_lookup},
+    "orchestrator": {"kb_lookup": kb_lookup, "sandbox_run": sandbox_run},
+    # No sandbox: the analyst answers the Ask rail from a finished report, so
+    # there is nothing to execute and no box worth provisioning per question.
     "analyst": {"kb_lookup": kb_lookup},
-    "doc_extractor": {"pdf_extract": pdf_extract, "xlsx_extract": xlsx_extract},
-    "gap_analyzer": {"kb_lookup": kb_lookup},
-    "data_scout": {"kb_lookup": kb_lookup, "web_search": web_search, "web_fetch": web_fetch},
-    "researcher": {"kb_lookup": kb_lookup, "web_search": web_search, "web_fetch": web_fetch},
+    "doc_extractor": {"pdf_extract": pdf_extract, "xlsx_extract": xlsx_extract, "sandbox_run": sandbox_run},
+    "gap_analyzer": {"kb_lookup": kb_lookup, "sandbox_run": sandbox_run},
+    "data_scout": {"kb_lookup": kb_lookup, "web_search": web_search, "web_fetch": web_fetch, "sandbox_run": sandbox_run},
+    "researcher": {"kb_lookup": kb_lookup, "web_search": web_search, "web_fetch": web_fetch, "sandbox_run": sandbox_run},
     "cross_examiner": {"kb_lookup": kb_lookup, "sandbox_run": sandbox_run},
     "scorer": {"kb_lookup": kb_lookup, "sandbox_run": sandbox_run},
-    "liaison": {},
+    "liaison": {"sandbox_run": sandbox_run},
 }

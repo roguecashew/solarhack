@@ -13,6 +13,7 @@ identical from the outside otherwise.
 from __future__ import annotations
 
 import os
+import contextlib
 from typing import Any
 
 from .obs import Trace, current_trace
@@ -104,6 +105,11 @@ def sandbox_run(code: str, trace: Trace | None = None) -> str:
     """
     t = trace or current_trace()
 
+    session = current_session()
+    if session is not None and session.active:
+        # Reuse the box this agent already owns.
+        return session.run(code)
+
     if not DAYTONA_API_KEY:
         if not ALLOW_HOST_EXEC:
             t.error(
@@ -194,3 +200,127 @@ def sandbox_selftest(trace: Trace | None = None) -> dict[str, Any]:
         sp["output"] = out.strip()
         sp["ok"] = ok
     return {"ok": ok, "health": health, "output": out.strip()}
+
+
+# ── per-agent sandbox sessions ───────────────────────────────────────────────
+#
+# A sandbox per *tool call* means an agent that calls sandbox_run three times
+# provisions three boxes. A sandbox per *agent run* is created once, reused for
+# every tool call that agent makes, and torn down when it finishes — cheaper,
+# and it makes provisioning deterministic rather than dependent on whether the
+# model happened to reach for the tool.
+
+import asyncio
+import threading
+from contextvars import ContextVar
+
+# Daytona is rate-limited and a run fans out wide (a dozen scouts at once), so
+# concurrent creates are bounded rather than unbounded.
+MAX_CONCURRENT_SANDBOXES = int(os.getenv("DAYTONA_MAX_CONCURRENT", "8"))
+SANDBOX_PER_AGENT = os.getenv("SANDBOX_PER_AGENT", "1") == "1"
+
+_create_sem = threading.Semaphore(MAX_CONCURRENT_SANDBOXES)
+_SESSION: ContextVar["SandboxSession | None"] = ContextVar("sandbox_session", default=None)
+
+
+class SandboxSession:
+    """One Daytona sandbox, owned by one agent run.
+
+    Used as a context manager. Failure to provision is not fatal — the agent
+    keeps working without a sandbox and the trace records why, because losing a
+    whole diligence run to a sandbox hiccup is worse than losing isolation for
+    one agent.
+    """
+
+    def __init__(self, label: str, trace: Trace):
+        self.label = label
+        self.trace = trace
+        self.sb: Any = None
+        self.calls = 0
+
+    def _provision(self) -> "SandboxSession":
+        if not DAYTONA_API_KEY:
+            self.trace.warn("sandbox.skip", f"{self.label}: no DAYTONA_API_KEY — running without a sandbox")
+            return self
+        try:
+            from daytona import Daytona, DaytonaConfig
+            with _create_sem:
+                with self.trace.span("sandbox.create", f"{self.label}: provisioning") as sp:
+                    client = Daytona(DaytonaConfig(api_key=DAYTONA_API_KEY, api_url=DAYTONA_API_URL))
+                    self.sb = client.create()
+                    sp["sandboxId"] = getattr(self.sb, "id", None)
+        except Exception as exc:
+            self.trace.warn("sandbox.unavailable", f"{self.label}: provisioning failed — {exc}")
+            self.sb = None
+        return self
+
+    def __enter__(self) -> "SandboxSession":
+        self._provision()
+        self._token = _SESSION.set(self)
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        try:
+            _SESSION.reset(self._token)
+        except Exception:
+            pass
+        self._teardown()
+
+    def _teardown(self) -> None:
+        if self.sb is None:
+            return
+        try:
+            with self.trace.span("sandbox.delete", f"{self.label}: teardown",
+                                 sandboxId=getattr(self.sb, "id", None), codeRuns=self.calls):
+                self.sb.delete()
+        except Exception as exc:
+            self.trace.warn("sandbox.leak", f"{self.label}: delete failed — {exc}",
+                            sandboxId=getattr(self.sb, "id", None))
+
+    @property
+    def active(self) -> bool:
+        return self.sb is not None
+
+    def run(self, code: str) -> str:
+        if self.sb is None:
+            raise SandboxUnavailable(f"{self.label}: no sandbox available")
+        self.calls += 1
+        with self.trace.span("sandbox.exec", f"{self.label}: run #{self.calls}",
+                             codeChars=len(code)) as sp:
+            res = self.sb.process.code_run(code)
+            out = (getattr(res, "result", "") or "")[:4000]
+            sp["exitCode"] = getattr(res, "exit_code", None)
+            sp["outputChars"] = len(out)
+            return out
+
+
+def current_session() -> "SandboxSession | None":
+    return _SESSION.get()
+
+
+@contextlib.contextmanager
+def agent_sandbox(label: str, trace: Trace):
+    """Wrap an agent run so it owns a sandbox for its lifetime."""
+    if not SANDBOX_PER_AGENT:
+        yield None
+        return
+    with SandboxSession(label, trace) as s:
+        yield s
+
+
+async def agent_sandbox_async(label: str, trace: Trace):
+    """Async wrapper: provisioning blocks for a few hundred ms, and with a dozen
+    agents starting at once that would stall the event loop. Enter and exit run
+    in worker threads; the ContextVar is set on the loop's context by hand so
+    tools running in *other* threads still see the session."""
+    session = SandboxSession(label, trace)
+    if not SANDBOX_PER_AGENT:
+        return None
+    await asyncio.to_thread(session._provision)
+    _SESSION.set(session)
+    return session
+
+
+async def close_agent_sandbox(session: "SandboxSession | None") -> None:
+    if session is not None:
+        await asyncio.to_thread(session._teardown)
