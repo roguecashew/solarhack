@@ -9,6 +9,9 @@ The repo has two halves:
   reports (`AgentReport` JSON) inside Daytona sandboxes. Only agent-backend devs
   need to touch it.
 
+
+  Watch the live demo link: https://youtube.com/shorts/5sNu0m1ZihU?is=LPyxD7nvZHxxeQ-q
+
 ---
 
 ## For frontend devs — the integration layer (TypeScript)
