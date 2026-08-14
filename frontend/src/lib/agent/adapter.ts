@@ -20,7 +20,6 @@ import type {
   TimelineEvent,
 } from "../types";
 import type { AgentReport } from "./report";
-
 const ITC_DEADLINE = "2030-12-31";
 
 const COMPONENT_TO_PILLAR: Record<string, PillarName> = {
@@ -86,6 +85,15 @@ function sevBand(severity: string): [RiskBand, StatusLabel] {
   return severity === "critical" || severity === "high"
     ? ["risk", "Flagged"]
     : ["watch", "Watch"];
+}
+
+/** Pillar status line under the bar (matches frontend reference copy). */
+function statusTextFor(score: number, factors: Factor[]): string {
+  if (score >= 70) return "Unlocked";
+  const nRisk = factors.filter((f) => f.band === "risk").length;
+  if (nRisk > 0) return `${nRisk} flag${nRisk > 1 ? "s" : ""} open`;
+  const nWatch = factors.filter((f) => f.band === "watch").length;
+  return `${nWatch} in watch`;
 }
 
 function pillarFor(component: string): PillarName {
@@ -194,6 +202,7 @@ export function toSentinel(report: AgentReport, meta: SentinelMeta): ProjectDeta
       score,
       band: band(score),
       unlocked: score >= 70,
+      statusText: statusTextFor(score, factors),
       subAgents: PILLAR_AGENTS[name],
       factors,
     });
@@ -234,13 +243,26 @@ export function toSentinel(report: AgentReport, meta: SentinelMeta): ProjectDeta
     };
   }
 
-  const timeline: TimelineEvent[] = [];
+  const rawTimeline: { label: string; date: string; kind: "milestone" | "deadline" }[] = [];
   for (const a of report.action_pack.agency_actions) {
     const iso = isoFrom(a.deadline);
-    if (iso) timeline.push({ label: `${a.agency} — ${a.action}`.slice(0, 80), date: iso, kind: "milestone" });
+    if (iso) rawTimeline.push({ label: `${a.agency} — ${a.action}`.slice(0, 80), date: iso, kind: "milestone" });
   }
-  timeline.sort((x, y) => x.date.localeCompare(y.date));
-  timeline.push({ label: "ITC deadline", date: ITC_DEADLINE, kind: "deadline" });
+  rawTimeline.push({ label: "ITC deadline", date: ITC_DEADLINE, kind: "deadline" });
+  rawTimeline.sort((x, y) => x.date.localeCompare(y.date));
+
+  const b = band(report.readiness);
+  const times = rawTimeline.map((e) => Date.parse(e.date));
+  const minT = Math.min(...times);
+  const maxT = Math.max(...times);
+  const timeline: TimelineEvent[] = rawTimeline.map((e, i) => ({
+    id: `tl-${i}`,
+    label: e.label,
+    date: e.date,
+    kind: e.kind,
+    band: b,
+    position: maxT === minT ? 50 : Math.round(((Date.parse(e.date) - minT) / (maxT - minT)) * 1000) / 10,
+  }));
 
   const seen = new Map<string, ReturnType<typeof docEntry>>();
   const allSources = [
@@ -282,7 +304,6 @@ export function toSentinel(report: AgentReport, meta: SentinelMeta): ProjectDeta
     priorityActions.push(action);
   });
 
-  const b = band(report.readiness);
   const projected = Math.min(100, report.readiness + (b === "strong" ? 6 : b === "watch" ? 18 : 28));
   const crit = report.red_flags.filter((f) => f.severity === "critical").length;
   const weakest = [...report.dimensions].sort((x, y) => x.score - y.score).slice(0, 2);
@@ -301,6 +322,10 @@ export function toSentinel(report: AgentReport, meta: SentinelMeta): ProjectDeta
       status: status(report.decision),
       pillars,
     },
+    eyebrow: `Solar · ${meta.capacityMW ?? 0} MW · ${report.location}`,
+    runSummary: `${seen.size} documents analyzed · ${report.missing_info.length} open items`,
+    scoreBandLabel: `${b.charAt(0).toUpperCase() + b.slice(1)} · ${Math.round(report.readiness)}/100`,
+    scoreNote: report.recommended_next_action ?? "",
     evidence,
     timeline,
     documents: [...seen.values()],
@@ -329,5 +354,29 @@ export function toSentinel(report: AgentReport, meta: SentinelMeta): ProjectDeta
         text: `I've completed diligence on ${report.project}. Activation score ${Math.round(report.readiness)}/100 — decision: ${report.decision}. ${crit} critical flags, ${report.contradictions.length} cross-document contradictions, ${report.missing_info.length} open information requests. Ask me what to prioritize.`,
       },
     ],
+    report: {
+      badge: "RED FLAG REPORT",
+      title: `${report.project} — due-diligence report`,
+      preparedBy: "Red Flag agent framework",
+      summary: report.recommended_next_action ?? "",
+      findings: report.red_flags.slice(0, 5).map((rf) => ({
+        title: rf.title.slice(0, 90),
+        text: rf.evidence,
+      })),
+      recommendedActions: report.action_pack.conditions_precedent.slice(0, 5),
+      sourceBasis: `${seen.size} source documents + ${report.acquired_data.length} acquired research packs`,
+    },
+    map: {
+      parcelSize: "—",
+      toggles: [
+        { id: "zoning", label: "Zoning", on: true },
+        { id: "protected-land", label: "Protected land", on: true },
+        { id: "transmission", label: "Transmission", on: false },
+      ],
+      distances: [],
+      zones: [],
+      pin: { left: 50, top: 50, label: report.location },
+    },
+    teamMembers: [],
   };
 }

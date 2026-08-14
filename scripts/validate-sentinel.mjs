@@ -51,6 +51,7 @@ function checkPillar(p, path) {
   req(isNum(p.score), `${path}.score`, "must be number");
   checkEnum(p.band, RISK_BANDS, `${path}.band`);
   req(isBool(p.unlocked), `${path}.unlocked`, "must be boolean");
+  req(isStr(p.statusText), `${path}.statusText`, "must be string");
   req(isStrArr(p.subAgents), `${path}.subAgents`, "must be string[]");
   req(Array.isArray(p.factors), `${path}.factors`, "must be array");
   (p.factors || []).forEach((f, i) => checkFactor(f, `${path}.factors[${i}]`));
@@ -80,18 +81,66 @@ function checkEvidence(ev, path) {
 
 function checkTimelineEvent(e, path) {
   if (!isObj(e)) return errors.push(`${path}: not an object`);
+  req(isStr(e.id), `${path}.id`, "must be string");
   req(isStr(e.label), `${path}.label`, "must be string");
   req(isStr(e.date) && ISO_DATE.test(e.date), `${path}.date`, "must be ISO date YYYY-MM-DD");
-  if (e.conflictsWith !== undefined) req(isStr(e.conflictsWith), `${path}.conflictsWith`, "must be string if present");
+  checkEnum(e.band, RISK_BANDS, `${path}.band`);
+  req(isNum(e.position), `${path}.position`, "must be number");
+  if (e.conflictKey !== undefined) req(isStr(e.conflictKey), `${path}.conflictKey`, "must be string if present");
+  if (e.shortLabel !== undefined) req(isStr(e.shortLabel), `${path}.shortLabel`, "must be string if present");
   if (e.kind !== undefined) checkEnum(e.kind, TIMELINE_KINDS, `${path}.kind`);
 }
 
 function checkDocument(d, path) {
   if (!isObj(d)) return errors.push(`${path}: not an object`);
-  ["id", "title", "kind", "uploadedAt"].forEach((k) => req(isStr(d[k]), `${path}.${k}`, "must be string"));
-  req(isNum(d.pages), `${path}.pages`, "must be number");
+  ["id", "title", "kind"].forEach((k) => req(isStr(d[k]), `${path}.${k}`, "must be string"));
+  if (d.pages !== undefined) req(isNum(d.pages), `${path}.pages`, "must be number if present");
+  if (d.uploadedAt !== undefined) req(isStr(d.uploadedAt), `${path}.uploadedAt`, "must be string if present");
   req(Array.isArray(d.pillars), `${path}.pillars`, "must be array");
   (d.pillars || []).forEach((p, i) => checkEnum(p, PILLARS, `${path}.pillars[${i}]`));
+}
+
+function checkReportContent(r, path) {
+  if (!isObj(r)) return errors.push(`${path}: not an object`);
+  ["badge", "title", "preparedBy", "summary", "sourceBasis"].forEach((k) =>
+    req(isStr(r[k]), `${path}.${k}`, "must be string"));
+  req(Array.isArray(r.findings), `${path}.findings`, "must be array");
+  (r.findings || []).forEach((f, i) => {
+    req(isStr(f.title), `${path}.findings[${i}].title`, "must be string");
+    req(isStr(f.text), `${path}.findings[${i}].text`, "must be string");
+  });
+  req(isStrArr(r.recommendedActions), `${path}.recommendedActions`, "must be string[]");
+}
+
+function checkMapData(m, path) {
+  if (!isObj(m)) return errors.push(`${path}: not an object`);
+  req(isStr(m.parcelSize), `${path}.parcelSize`, "must be string");
+  req(Array.isArray(m.toggles), `${path}.toggles`, "must be array");
+  (m.toggles || []).forEach((t, i) => {
+    req(isStr(t.id) && isStr(t.label) && isBool(t.on), `${path}.toggles[${i}]`, "must be {id, label, on:boolean}");
+  });
+  req(Array.isArray(m.distances), `${path}.distances`, "must be array");
+  (m.distances || []).forEach((d, i) => {
+    req(isStr(d.label) && isStr(d.value), `${path}.distances[${i}]`, "must be {label, value}");
+  });
+  req(Array.isArray(m.zones), `${path}.zones`, "must be array");
+  (m.zones || []).forEach((z, i) => {
+    req(isStr(z.id) && isStr(z.title) && isStr(z.description) && isStr(z.source),
+      `${path}.zones[${i}]`, "missing string fields");
+    checkEnum(z.type, new Set(["suitable", "restricted"]), `${path}.zones[${i}].type`);
+    ["left", "top", "width", "height"].forEach((k) =>
+      req(isNum(z.bounds?.[k]), `${path}.zones[${i}].bounds.${k}`, "must be number"));
+  });
+  req(isObj(m.pin) && isNum(m.pin.left) && isNum(m.pin.top) && isStr(m.pin.label),
+    `${path}.pin`, "must be {left:number, top:number, label:string}");
+}
+
+function checkTeamMembers(t, path) {
+  req(Array.isArray(t), path, "must be array");
+  (t || []).forEach((m, i) => {
+    req(isStr(m.name) && isStr(m.email), `${path}[${i}]`, "must have name + email strings");
+    checkEnum(m.access, new Set(["full", "limited"]), `${path}[${i}].access`);
+  });
 }
 
 function checkPriorityAction(a, path) {
@@ -135,6 +184,10 @@ export function validateProjectDetail(detail, label = "input") {
   req(isObj(detail.evidence), `${p}.evidence`, "must be a record");
   Object.entries(detail.evidence || {}).forEach(([k, ev]) => checkEvidence(ev, `${p}.evidence["${k}"]`));
 
+  // Header fields (required since the workspace-schema revision)
+  ["eyebrow", "runSummary", "scoreBandLabel", "scoreNote"].forEach((k) =>
+    req(isStr(detail[k]), `${p}.${k}`, "must be string"));
+
   // Collections
   req(Array.isArray(detail.timeline), `${p}.timeline`, "must be array");
   (detail.timeline || []).forEach((e, i) => checkTimelineEvent(e, `${p}.timeline[${i}]`));
@@ -150,6 +203,11 @@ export function validateProjectDetail(detail, label = "input") {
   });
   req(Array.isArray(detail.chatHistory), `${p}.chatHistory`, "must be array");
   (detail.chatHistory || []).forEach((m, i) => checkChatMessage(m, `${p}.chatHistory[${i}]`));
+
+  // Workspace sections (required since the workspace-schema revision)
+  checkReportContent(detail.report, `${p}.report`);
+  checkMapData(detail.map, `${p}.map`);
+  checkTeamMembers(detail.teamMembers, `${p}.teamMembers`);
 
   return errors.length === 0;
 }

@@ -74,6 +74,17 @@ def _sev_band(severity: str) -> tuple[str, str]:
     return ("risk", "Flagged") if severity in ("critical", "high") else ("watch", "Watch")
 
 
+def _status_text(score: float, factors: list[dict]) -> str:
+    """Pillar status line under the bar (matches frontend reference copy)."""
+    if score >= 70:
+        return "Unlocked"
+    n_risk = sum(1 for f in factors if f["band"] == "risk")
+    if n_risk:
+        return f"{n_risk} flag{'s' if n_risk > 1 else ''} open"
+    n_watch = sum(1 for f in factors if f["band"] == "watch")
+    return f"{n_watch} in watch"
+
+
 def _pillar_for(component: str) -> str:
     key = component.lower().replace(" ", "_").replace("/", "_").replace("&", "").strip("_")
     return COMPONENT_TO_PILLAR.get(key, "Land")
@@ -156,7 +167,8 @@ def to_sentinel(report: Report, project_id: str, lat: float = 0, lon: float = 0,
 
         pillars.append({
             "name": name, "score": score, "band": band(score),
-            "unlocked": score >= 70, "subAgents": PILLAR_AGENTS[name], "factors": factors,
+            "unlocked": score >= 70, "statusText": _status_text(score, factors),
+            "subAgents": PILLAR_AGENTS[name], "factors": factors,
         })
 
     for i, c in enumerate(report.contradictions):
@@ -179,13 +191,23 @@ def to_sentinel(report: Report, project_id: str, lat: float = 0, lon: float = 0,
         }
 
     # timeline: parseable agency-action deadlines + ITC pin
-    timeline = []
+    raw_timeline = []
     for a in report.action_pack.agency_actions:
         iso = _iso_from(a.deadline)
         if iso:
-            timeline.append({"label": f"{a.agency} — {a.action}"[:80], "date": iso, "kind": "milestone"})
-    timeline.sort(key=lambda e: e["date"])
-    timeline.append({"label": "ITC deadline", "date": ITC_DEADLINE, "kind": "deadline"})
+            raw_timeline.append({"label": f"{a.agency} — {a.action}"[:80], "date": iso, "kind": "milestone"})
+    raw_timeline.append({"label": "ITC deadline", "date": ITC_DEADLINE, "kind": "deadline"})
+    raw_timeline.sort(key=lambda e: e["date"])
+
+    from datetime import date as _date
+    b = band(report.readiness)
+    ords = [_date.fromisoformat(e["date"]).toordinal() for e in raw_timeline]
+    mn, mx = min(ords), max(ords)
+    timeline = [{
+        "id": f"tl-{i}", "label": e["label"], "date": e["date"], "kind": e["kind"],
+        "band": b,
+        "position": 50 if mx == mn else int(((ords[i] - mn) / (mx - mn)) * 1000 + 0.5) / 10,
+    } for i, e in enumerate(raw_timeline)]
 
     # documents from all cited sources
     seen: dict[str, dict] = {}
@@ -240,6 +262,10 @@ def to_sentinel(report: Report, project_id: str, lat: float = 0, lon: float = 0,
             "scoreReason": report.recommended_next_action or "",
             "status": status(report.decision), "pillars": pillars,
         },
+        "eyebrow": f"Solar · {capacity_mw} MW · {report.location}",
+        "runSummary": f"{len(documents)} documents analyzed · {len(report.missing_info)} open items",
+        "scoreBandLabel": f"{b.capitalize()} · {report.readiness:.0f}/100",
+        "scoreNote": report.recommended_next_action or "",
         "evidence": evidence,
         "timeline": timeline,
         "documents": documents,
@@ -254,6 +280,29 @@ def to_sentinel(report: Report, project_id: str, lat: float = 0, lon: float = 0,
                      f"contradictions, {len(report.missing_info)} open information requests. "
                      f"Ask me what to prioritize."),
         }],
+        "report": {
+            "badge": "RED FLAG REPORT",
+            "title": f"{report.project} — due-diligence report",
+            "preparedBy": "Red Flag agent framework",
+            "summary": report.recommended_next_action or "",
+            "findings": [{"title": rf.title[:90], "text": rf.evidence}
+                         for rf in report.red_flags[:5]],
+            "recommendedActions": report.action_pack.conditions_precedent[:5],
+            "sourceBasis": (f"{len(documents)} source documents + "
+                            f"{len(report.acquired_data)} acquired research packs"),
+        },
+        "map": {
+            "parcelSize": "—",
+            "toggles": [
+                {"id": "zoning", "label": "Zoning", "on": True},
+                {"id": "protected-land", "label": "Protected land", "on": True},
+                {"id": "transmission", "label": "Transmission", "on": False},
+            ],
+            "distances": [],
+            "zones": [],
+            "pin": {"left": 50, "top": 50, "label": report.location},
+        },
+        "teamMembers": [],
     }
 
 

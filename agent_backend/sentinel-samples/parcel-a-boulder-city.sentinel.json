@@ -16,6 +16,7 @@
         "score": 78.0,
         "band": "strong",
         "unlocked": true,
+        "statusText": "Unlocked",
         "subAgents": [
           "extractor:land-docs",
           "scout:zoning",
@@ -45,6 +46,7 @@
         "score": 72.0,
         "band": "strong",
         "unlocked": true,
+        "statusText": "Unlocked",
         "subAgents": [
           "researcher:state_law",
           "researcher:federal_law",
@@ -74,6 +76,7 @@
         "score": 75.0,
         "band": "strong",
         "unlocked": true,
+        "statusText": "Unlocked",
         "subAgents": [
           "researcher:financials",
           "cross-examiner"
@@ -134,6 +137,7 @@
         "score": 69.0,
         "band": "watch",
         "unlocked": false,
+        "statusText": "2 in watch",
         "subAgents": [
           "researcher:supply_chain"
         ],
@@ -161,6 +165,7 @@
         "score": 81.0,
         "band": "strong",
         "unlocked": true,
+        "statusText": "Unlocked",
         "subAgents": [
           "researcher:demand",
           "researcher:interconnection"
@@ -197,6 +202,10 @@
       }
     ]
   },
+  "eyebrow": "Solar \u00b7 180 MW \u00b7 Eldorado Valley, Boulder City, NV",
+  "runSummary": "0 documents analyzed \u00b7 7 open items",
+  "scoreBandLabel": "Strong \u00b7 75/100",
+  "scoreNote": "Produce the beginning-of-construction evidence package (gating), then initiate the Boulder City development agreement and NV Energy cluster study in parallel",
   "evidence": {
     "ev-finance-0": {
       "id": "ev-finance-0",
@@ -306,19 +315,28 @@
   },
   "timeline": [
     {
+      "id": "tl-0",
       "label": "Clark County Desert Conservation Program / USFWS \u2014 Book protocol tortoise survey",
       "date": "2026-09-01",
-      "kind": "milestone"
+      "kind": "milestone",
+      "band": "strong",
+      "position": 0.0
     },
     {
+      "id": "tl-1",
       "label": "NV Energy (OASIS/NEVP) \u2014 Confirm queue position + cluster study schedule",
       "date": "2027-01-01",
-      "kind": "milestone"
+      "kind": "milestone",
+      "band": "strong",
+      "position": 7.7
     },
     {
+      "id": "tl-2",
       "label": "ITC deadline",
       "date": "2030-12-31",
-      "kind": "deadline"
+      "kind": "deadline",
+      "band": "strong",
+      "position": 100.0
     }
   ],
   "documents": [],
@@ -405,5 +423,60 @@
       "role": "assistant",
       "text": "I've completed diligence on RAI Solar A \u2014 180 MWac PV + 80 MW/320 MWh BESS. Activation score 75/100 \u2014 decision: Proceed. 1 critical flags, 1 cross-document contradictions, 7 open information requests. Ask me what to prioritize."
     }
-  ]
+  ],
+  "report": {
+    "badge": "RED FLAG REPORT",
+    "title": "RAI Solar A \u2014 180 MWac PV + 80 MW/320 MWh BESS \u2014 due-diligence report",
+    "preparedBy": "Red Flag agent framework",
+    "summary": "Produce the beginning-of-construction evidence package (gating), then initiate the Boulder City development agreement and NV Energy cluster study in parallel",
+    "findings": [
+      {
+        "title": "ITC beginning-of-construction deadline (Jul 4, 2026) already passed \u2014 ~$60M at risk",
+        "text": "OBBBA terminates solar \u00a748E for BOC after 7/4/2026 with PIS after 12/31/2027; Notice 2025-42 removed the 5% safe harbor for >1.5 MW solar"
+      },
+      {
+        "title": "Interconnection study status unknown vs $24M upgrade trigger",
+        "text": "No queue position, cluster phase, or network-upgrade allocation in dossier; FERC Order 2023 cluster timelines in the West running long"
+      },
+      {
+        "title": "Cost scope ambiguity \u2014 $202M may exclude 80 MW/320 MWh storage",
+        "text": "$1.12/Wac matches PV-only benchmark; realistic combined PV+BESS figure $240-280M"
+      }
+    ],
+    "recommendedActions": [
+      "Documented pre-7/4/2026 BOC preserving solar ITC (or re-run economics at 0% PV ITC)",
+      "Network upgrade allocation \u2264 $24M trigger or re-model",
+      "Executed offtake or lender-accepted merchant case",
+      "EPC scope reconciled to $240-280M if storage included"
+    ],
+    "sourceBasis": "0 source documents + 3 acquired research packs"
+  },
+  "map": {
+    "parcelSize": "\u2014",
+    "toggles": [
+      {
+        "id": "zoning",
+        "label": "Zoning",
+        "on": true
+      },
+      {
+        "id": "protected-land",
+        "label": "Protected land",
+        "on": true
+      },
+      {
+        "id": "transmission",
+        "label": "Transmission",
+        "on": false
+      }
+    ],
+    "distances": [],
+    "zones": [],
+    "pin": {
+      "left": 50,
+      "top": 50,
+      "label": "Eldorado Valley, Boulder City, NV"
+    }
+  },
+  "teamMembers": []
 }

@@ -16,6 +16,7 @@
         "score": 12.0,
         "band": "risk",
         "unlocked": false,
+        "statusText": "3 flags open",
         "subAgents": [
           "extractor:land-docs",
           "scout:zoning",
@@ -56,6 +57,7 @@
         "score": 8.0,
         "band": "risk",
         "unlocked": false,
+        "statusText": "5 flags open",
         "subAgents": [
           "researcher:state_law",
           "researcher:federal_law",
@@ -116,6 +118,7 @@
         "score": 22.0,
         "band": "risk",
         "unlocked": false,
+        "statusText": "3 flags open",
         "subAgents": [
           "researcher:financials",
           "cross-examiner"
@@ -155,6 +158,7 @@
         "score": 82.0,
         "band": "strong",
         "unlocked": true,
+        "statusText": "Unlocked",
         "subAgents": [
           "researcher:supply_chain"
         ],
@@ -174,6 +178,7 @@
         "score": 80.0,
         "band": "strong",
         "unlocked": true,
+        "statusText": "Unlocked",
         "subAgents": [
           "researcher:demand",
           "researcher:interconnection"
@@ -191,6 +196,10 @@
       }
     ]
   },
+  "eyebrow": "Solar \u00b7 180 MW \u00b7 Sloan Canyon NCA, Clark County, NV",
+  "runSummary": "0 documents analyzed \u00b7 3 open items",
+  "scoreBandLabel": "Risk \u00b7 38/100",
+  "scoreNote": "Stop discretionary spend, preserve transferable studies, and re-site the footprint to Eldorado Valley private/city lands or Dry Lake SEZ \u2014 land designation is a gating criterion that no PPA price, irradiance, or schedule can cure",
   "evidence": {
     "ev-land-0": {
       "id": "ev-land-0",
@@ -352,14 +361,20 @@
   },
   "timeline": [
     {
+      "id": "tl-0",
       "label": "BLM Las Vegas Field Office / Boulder City \u2014 Scope re-site options: Eldorado Vall",
       "date": "2026-10-01",
-      "kind": "milestone"
+      "kind": "milestone",
+      "band": "risk",
+      "position": 0.0
     },
     {
+      "id": "tl-1",
       "label": "ITC deadline",
       "date": "2030-12-31",
-      "kind": "deadline"
+      "kind": "deadline",
+      "band": "risk",
+      "position": 100.0
     }
   ],
   "documents": [],
@@ -419,5 +434,62 @@
       "role": "assistant",
       "text": "I've completed diligence on RAI Solar B \u2014 'Eldorado East Expansion' 180 MWac. Activation score 38/100 \u2014 decision: Hold. 2 critical flags, 2 cross-document contradictions, 3 open information requests. Ask me what to prioritize."
     }
-  ]
+  ],
+  "report": {
+    "badge": "RED FLAG REPORT",
+    "title": "RAI Solar B \u2014 'Eldorado East Expansion' 180 MWac \u2014 due-diligence report",
+    "preparedBy": "Red Flag agent framework",
+    "summary": "Stop discretionary spend, preserve transferable studies, and re-site the footprint to Eldorado Valley private/city lands or Dry Lake SEZ \u2014 land designation is a gating criterion that no PPA price, irradiance, or schedule can cure",
+    "findings": [
+      {
+        "title": "Statutory bar: NCA uses must further conservation purposes (16 U.S.C. \u00a7460qqq-3(c))",
+        "text": "Sloan Canyon NCA Act, PL 107-282 (2002); 300+ petroglyph panels, NRHP-listed site"
+      },
+      {
+        "title": "2024 Western Solar Plan ROD excludes NCAs; variance lands eliminated",
+        "text": "89 FR 105623 (Dec 27, 2024); ~131M acres excluded; ROD amended the Sloan Canyon NCA RMP itself"
+      },
+      {
+        "title": "PL 119-91 (May 19, 2026) expanded the NCA +19.2% \u2014 conflict deepened",
+        "text": "Sloan Canyon Conservation and Lateral Pipeline Act (H.R. 972, Titus); 48,438 \u2192 57,728 acres; only development authorized is a water pipeline ROW"
+      },
+      {
+        "title": "$4.8M avoidable spend if land status discovered late",
+        "text": "Land option $0.45M + interconnection $1.35M + studies $1.10M + labor $0.90M + commercial $1.00M"
+      }
+    ],
+    "recommendedActions": [
+      "Stop all discretionary spend immediately",
+      "Re-site decision before any further interconnection/permitting expenditure"
+    ],
+    "sourceBasis": "0 source documents + 2 acquired research packs"
+  },
+  "map": {
+    "parcelSize": "\u2014",
+    "toggles": [
+      {
+        "id": "zoning",
+        "label": "Zoning",
+        "on": true
+      },
+      {
+        "id": "protected-land",
+        "label": "Protected land",
+        "on": true
+      },
+      {
+        "id": "transmission",
+        "label": "Transmission",
+        "on": false
+      }
+    ],
+    "distances": [],
+    "zones": [],
+    "pin": {
+      "left": 50,
+      "top": 50,
+      "label": "Sloan Canyon NCA, Clark County, NV"
+    }
+  },
+  "teamMembers": []
 }

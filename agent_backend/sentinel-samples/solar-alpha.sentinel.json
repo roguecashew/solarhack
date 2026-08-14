@@ -16,6 +16,7 @@
         "score": 38.0,
         "band": "risk",
         "unlocked": false,
+        "statusText": "6 flags open",
         "subAgents": [
           "extractor:land-docs",
           "scout:zoning",
@@ -86,6 +87,7 @@
         "score": 18.7,
         "band": "risk",
         "unlocked": false,
+        "statusText": "4 flags open",
         "subAgents": [
           "researcher:state_law",
           "researcher:federal_law",
@@ -134,6 +136,7 @@
         "score": 18.7,
         "band": "risk",
         "unlocked": false,
+        "statusText": "6 flags open",
         "subAgents": [
           "researcher:financials",
           "cross-examiner"
@@ -204,6 +207,7 @@
         "score": 24.0,
         "band": "risk",
         "unlocked": false,
+        "statusText": "5 flags open",
         "subAgents": [
           "researcher:supply_chain"
         ],
@@ -261,6 +265,7 @@
         "score": 34.7,
         "band": "risk",
         "unlocked": false,
+        "statusText": "5 flags open",
         "subAgents": [
           "researcher:demand",
           "researcher:interconnection"
@@ -317,6 +322,10 @@
       }
     ]
   },
+  "eyebrow": "Solar \u00b7 250 MW \u00b7 Solano County, California",
+  "runSummary": "7 documents analyzed \u00b7 6 open items",
+  "scoreBandLabel": "Risk \u00b7 26/100",
+  "scoreNote": "Resolve the zoning pathway via CEC AB 205 Opt-In and reconcile CAPEX/offtake to executed evidence before financing close \u2014 the model currently assumes a site and revenue base the documents don't support",
   "evidence": {
     "ev-land-0": {
       "id": "ev-land-0",
@@ -683,24 +692,36 @@
   },
   "timeline": [
     {
+      "id": "tl-0",
       "label": "California Energy Commission \u2014 Evaluate AB 205 Opt-In Certification (270-day sta",
       "date": "2026-10-01",
-      "kind": "milestone"
+      "kind": "milestone",
+      "band": "risk",
+      "position": 0.0
     },
     {
+      "id": "tl-1",
       "label": "Solano County Water Agency / district \u2014 Contract remaining 32 acre-feet construc",
       "date": "2026-11-01",
-      "kind": "milestone"
+      "kind": "milestone",
+      "band": "risk",
+      "position": 2.0
     },
     {
+      "id": "tl-2",
       "label": "CDFW \u2014 Complete raptor consultation and re-layout sensitivity analysis",
       "date": "2026-12-01",
-      "kind": "milestone"
+      "kind": "milestone",
+      "band": "risk",
+      "position": 3.9
     },
     {
+      "id": "tl-3",
       "label": "ITC deadline",
       "date": "2030-12-31",
-      "kind": "deadline"
+      "kind": "deadline",
+      "band": "risk",
+      "position": 100.0
     }
   ],
   "documents": [
@@ -877,5 +898,69 @@
       "role": "assistant",
       "text": "I've completed diligence on Solar Alpha \u2014 250 MW solar + storage. Activation score 26/100 \u2014 decision: Hold. 8 critical flags, 4 cross-document contradictions, 6 open information requests. Ask me what to prioritize."
     }
-  ]
+  ],
+  "report": {
+    "badge": "RED FLAG REPORT",
+    "title": "Solar Alpha \u2014 250 MW solar + storage \u2014 due-diligence report",
+    "preparedBy": "Red Flag agent framework",
+    "summary": "Resolve the zoning pathway via CEC AB 205 Opt-In and reconcile CAPEX/offtake to executed evidence before financing close \u2014 the model currently assumes a site and revenue base the documents don't support",
+    "findings": [
+      {
+        "title": "Parcel 14 option unsigned on interconnection route",
+        "text": "18 acres near the preferred substation route shown as project-controlled in the development schedule, but the title summary lists the option agreement as unsigned"
+      },
+      {
+        "title": "Early grading precedes environmental review milestone",
+        "text": "Schedule starts physical work Oct 14, 2026 \u2014 roughly 8 weeks before environmental review/raptor consultation completes Dec 2026"
+      },
+      {
+        "title": "Stale $186M CAPEX vs $199-211M reconciliation",
+        "text": "Finance model uses $186.0M CAPEX while updated materials packages are +$12.7M, implying $199-211M total"
+      },
+      {
+        "title": "DSCR covenant breach in updated scenarios",
+        "text": "Minimum DSCR falls to 1.24x (updated materials), 1.23x (demand corrected), 1.14x (combined downside) against a 1.25x covenant"
+      },
+      {
+        "title": "Transformer lead time exceeds schedule by 24 weeks",
+        "text": "Supplier indication 62 weeks vs 38-week allowance for two main power transformers; real 2026 market norm is 128-144 weeks for large power transformers"
+      }
+    ],
+    "recommendedActions": [
+      "Resolve Parcel 14 site control or redesign collector alignment",
+      "Reconcile CAPEX to $199-211M and re-run covenant headroom",
+      "Resequence early grading after environmental review or carve out lawful early works",
+      "Confirm CEC Opt-In pathway given county zoning prohibition",
+      "Use 150 MW firm case until additional offtake is executed"
+    ],
+    "sourceBasis": "7 source documents + 3 acquired research packs"
+  },
+  "map": {
+    "parcelSize": "\u2014",
+    "toggles": [
+      {
+        "id": "zoning",
+        "label": "Zoning",
+        "on": true
+      },
+      {
+        "id": "protected-land",
+        "label": "Protected land",
+        "on": true
+      },
+      {
+        "id": "transmission",
+        "label": "Transmission",
+        "on": false
+      }
+    ],
+    "distances": [],
+    "zones": [],
+    "pin": {
+      "left": 50,
+      "top": 50,
+      "label": "Solano County, California"
+    }
+  },
+  "teamMembers": []
 }
