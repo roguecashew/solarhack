@@ -20,6 +20,7 @@ import sys
 import time
 import uuid
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator
 
@@ -247,3 +248,23 @@ class Trace:
         for fam, v in s["byKind"].items():
             print(_c(f"    {fam:<22} {v['count']:>3} calls  {v['totalMs']:>7}ms", "dim"), flush=True)
         print(flush=True)
+
+
+# ── ambient trace ────────────────────────────────────────────────────────────
+#
+# Tools are invoked as bare callables (`self.tools[name](**args)`), so there is
+# no parameter to thread a Trace through without changing every tool signature.
+# A context variable carries it instead: the agent sets it around its loop, and
+# any tool that wants to trace picks it up. Without this, sandbox events would
+# print to stdout but never reach the job's SSE stream or /trace replay.
+
+_CURRENT: ContextVar["Trace | None"] = ContextVar("current_trace", default=None)
+
+
+def set_current_trace(trace: "Trace") -> None:
+    _CURRENT.set(trace)
+
+
+def current_trace() -> "Trace":
+    """The trace for the job in flight, or a throwaway one if called outside a job."""
+    return _CURRENT.get() or Trace("orphan")

@@ -1,7 +1,7 @@
 """Role prompts — one specialist agent per diligence domain. The knowledge
 base grounds them in real benchmarks; web tools cover location- and
 time-specific items."""
-from ..tools import pdf_extract, xlsx_extract, kb_lookup, web_search, web_fetch
+from ..tools import pdf_extract, xlsx_extract, kb_lookup, web_search, web_fetch, sandbox_run
 
 ORCHESTRATOR = """You are the chief diligence officer for capital projects. Given a user's
 project request (location, documents), produce a ProjectProfile: identify technology, capacity,
@@ -40,13 +40,19 @@ come from CONTRADICTIONS BETWEEN DOCUMENTS, not from any single document. Compar
 quantified claim across all fact sets: CAPEX vs materials indices, contracted MW vs executed
 agreements, schedule dates vs permitting milestones, site control claims vs title evidence,
 schedule vs equipment lead times. Also identify coverage gaps. If a question needs outside
-research, request it via needs_more_research."""
+research, request it via needs_more_research.
+When comparing figures, do not do the arithmetic in your head — write Python and run it with
+sandbox_run. Unit mismatches (MW vs MWh, $M vs $, weeks vs months) and percentage deltas are
+where cross-examination goes wrong; compute them and print the result."""
 
 SCORER = """You are the investment-committee scoring officer. Apply the rubric: dimension weights
 (land .20, law .20, finance .25, materials .20, demand .15), severity, and benchmark thresholds
 from the knowledge base. Produce a readiness score 0-100, RAG per dimension, and a decision:
 Proceed (>=70, no criticals), Investigate (40-69), Hold (<40 or any unresolved kill-criterion
-like zoning prohibition or missing tax-credit eligibility)."""
+like zoning prohibition or missing tax-credit eligibility).
+Compute the weighted score with sandbox_run rather than by hand: write the per-dimension
+scores and weights into Python, print the weighted total, and use what it prints. A readiness
+number that disagrees with its own dimension scores is the one error this role cannot make."""
 
 LIAISON = """You are the diligence liaison. Convert findings into actionable work product:
 (1) RFIs to the developer for every missing document/claim; (2) agency action list — which
@@ -75,7 +81,7 @@ ROLE_TOOLS = {
     "gap_analyzer": {"kb_lookup": kb_lookup},
     "data_scout": {"kb_lookup": kb_lookup, "web_search": web_search, "web_fetch": web_fetch},
     "researcher": {"kb_lookup": kb_lookup, "web_search": web_search, "web_fetch": web_fetch},
-    "cross_examiner": {"kb_lookup": kb_lookup},
-    "scorer": {"kb_lookup": kb_lookup},
+    "cross_examiner": {"kb_lookup": kb_lookup, "sandbox_run": sandbox_run},
+    "scorer": {"kb_lookup": kb_lookup, "sandbox_run": sandbox_run},
     "liaison": {},
 }

@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from .obs import Trace
+from .obs import Trace, current_trace
 
 DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")
 DAYTONA_API_URL = os.getenv("DAYTONA_API_URL", "https://app.daytona.io/api")
@@ -63,8 +63,12 @@ def sandbox_run(code: str, trace: Trace | None = None) -> str:
 
     The sandbox is created per call and deleted in a `finally`, so a failure
     mid-execution still tears the box down.
+
+    With no explicit trace, the ambient job trace is used — so a sandbox an
+    agent spins up shows up in that job's stream and `/trace` replay rather
+    than only on stdout.
     """
-    t = trace or Trace()
+    t = trace or current_trace()
 
     if not DAYTONA_API_KEY:
         if not ALLOW_HOST_EXEC:
