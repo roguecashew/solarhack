@@ -14,7 +14,7 @@ import {
   type ScanStep,
 } from "@/components/scanning/scanScript";
 
-const TARGET = "/projects/solar-alpha";
+const TARGET = "/projects/project-alpha";
 const DOC_COUNT = 9;
 
 export default function ScanningPage() {

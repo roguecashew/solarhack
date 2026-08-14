@@ -1,37 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { useProject } from "@/components/project/ProjectContext";
-import { SentinelRail } from "@/components/assistant/SentinelRail";
-import { ActivationScore } from "@/components/overview/ActivationScore";
-import { PillarCards } from "@/components/overview/PillarCards";
-import { FactorDetail } from "@/components/overview/FactorDetail";
-import type { PillarName } from "@/lib/types";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { getProjectDetail } from "@/lib/mockData";
+import { ProjectProvider } from "@/components/project/ProjectContext";
+import { ProjectWorkspace } from "@/components/project/ProjectWorkspace";
 
-// Project Overview tab — the primary screen for a project.
-export default function OverviewPage() {
-  const { project } = useProject();
-  const [selectedPillar, setSelectedPillar] = useState<PillarName | null>(null);
+export default function ProjectPage() {
+  const params = useParams<{ id: string }>();
+  const detail = getProjectDetail(params.id);
 
-  const handleSelect = (name: PillarName) => {
-    setSelectedPillar((current) => (current === name ? null : name));
-  };
+  if (!detail) {
+    return (
+      <div className="mx-auto max-w-md px-8 py-16 text-center">
+        <p className="text-muted">
+          Project not found.{" "}
+          <Link href="/projects" className="text-brand underline">
+            Back to current projects
+          </Link>
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="space-y-6">
-        <ActivationScore project={project} />
-        <PillarCards
-          pillars={project.pillars}
-          selected={selectedPillar}
-          onSelect={handleSelect}
-        />
-        <FactorDetail pillars={project.pillars} selected={selectedPillar} />
-      </div>
-
-      <div className="lg:sticky lg:top-6 lg:self-start">
-        <SentinelRail />
-      </div>
-    </div>
+    <ProjectProvider detail={detail}>
+      <ProjectWorkspace />
+    </ProjectProvider>
   );
 }

@@ -19,7 +19,11 @@ export type Factor = {
   evidence: string;
   /** Source document titles this factor cites. */
   sources: string[];
-  /** Id into the evidence map for the "View evidence" drawer. */
+  /** Present only for watch/risk factors — inline "Why this matters". */
+  whyItMatters?: string;
+  /** Present only for watch/risk factors — numbered recommended steps. */
+  recommendedSteps?: string[];
+  /** Id into the evidence map for the "View evidence" drawer (legacy). */
   evidenceId?: string;
 };
 
@@ -29,6 +33,8 @@ export type PillarScore = {
   band: RiskBand;
   /** "Unlocked" only when fully cleared — a genuine milestone, not a color. */
   unlocked: boolean;
+  /** Status line under the bar, e.g. "Unlocked", "1 flag open", "1 in watch". */
+  statusText: string;
   subAgents: string[];
   factors: Factor[];
 };
@@ -78,12 +84,48 @@ export type Evidence = {
 };
 
 export type TimelineEvent = {
+  id: string;
   label: string;
+  /** Short position label under the dot, e.g. "Construction (Oct)". */
+  shortLabel?: string;
   /** ISO date string. */
   date: string;
-  /** Label of a milestone this one conflicts with (e.g. starts before it). */
-  conflictsWith?: string;
+  /** Human date shown in the tooltip, e.g. "Oct 14, 2026 (scheduled)". */
+  dateDisplay?: string;
+  /** Tooltip body copy. */
+  description?: string;
+  /** Note appended in the tooltip conflict line. */
+  conflictNote?: string;
+  band: RiskBand;
+  /** Percentage position along the track (0–100) — matches the mockup. */
+  position: number;
+  /** Shared key: two events with the same key cross-highlight together. */
+  conflictKey?: string;
   kind?: "milestone" | "deadline";
+};
+
+export type MapZone = {
+  id: string;
+  type: "suitable" | "restricted";
+  title: string;
+  description: string;
+  source: string;
+  /** Percentage-based bounds, matching the mockup. */
+  bounds: { left: number; top: number; width: number; height: number };
+};
+
+export type MapToggle = {
+  id: string;
+  label: string;
+  on: boolean;
+};
+
+export type MapDistance = { label: string; value: string };
+
+export type TeamMember = {
+  name: string;
+  email: string;
+  access: "full" | "limited";
 };
 
 export type ChatAction = {
@@ -118,8 +160,10 @@ export type ProjectDocument = {
   id: string;
   title: string;
   kind: string;
-  pages: number;
-  uploadedAt: string;
+  /** File size label, e.g. "2.1 MB" (matches the reference documents list). */
+  size?: string;
+  pages?: number;
+  uploadedAt?: string;
   /** Which pillar(s) this document primarily informs. */
   pillars: PillarName[];
 };
@@ -131,9 +175,34 @@ export type RecentDocument = {
   addedAt: string;
 };
 
+export type ReportContent = {
+  badge: string;
+  title: string;
+  preparedBy: string;
+  summary: string;
+  findings: { title: string; text: string }[];
+  /** Recommended action lines (may contain a "— projected +N pts" suffix). */
+  recommendedActions: string[];
+  sourceBasis: string;
+};
+
+export type MapData = {
+  parcelSize: string;
+  toggles: MapToggle[];
+  distances: MapDistance[];
+  zones: MapZone[];
+  pin: { left: number; top: number; label: string };
+};
+
 /** Everything the Project view and its tabs need, keyed by project id. */
 export type ProjectDetail = {
   project: Project;
+  /** Header eyebrow, e.g. "Solar · 180 MW · West Texas". */
+  eyebrow: string;
+  /** Header sub, e.g. "7 documents + 3 sheets analyzed · run #A-1147". */
+  runSummary: string;
+  scoreBandLabel: string;
+  scoreNote: string;
   evidence: Record<string, Evidence>;
   timeline: TimelineEvent[];
   documents: ProjectDocument[];
@@ -141,6 +210,9 @@ export type ProjectDetail = {
   projectedScoreAfterMitigation: number;
   suggestedQuestions: ScriptedQA[];
   chatHistory: ChatMessage[];
+  report: ReportContent;
+  map: MapData;
+  teamMembers: TeamMember[];
 };
 
 /** One of the five risk factors, for the portfolio legend. */

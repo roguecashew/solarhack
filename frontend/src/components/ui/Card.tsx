@@ -18,7 +18,7 @@ export function Card({
   return (
     <Tag
       className={clsx(
-        "rounded-[18px] bg-white shadow-card",
+        "rounded-[11px] border border-hairline bg-white shadow-card",
         padded && "p-5",
         className,
       )}
