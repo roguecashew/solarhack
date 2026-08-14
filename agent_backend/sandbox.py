@@ -28,9 +28,43 @@ ALLOW_HOST_EXEC = os.getenv("DANGEROUSLY_ALLOW_HOST_EXEC", "0") == "1"
 AUTO_STOP_MINUTES = int(os.getenv("DAYTONA_AUTO_STOP_MIN", "15"))
 AUTO_DELETE_MINUTES = int(os.getenv("DAYTONA_AUTO_DELETE_MIN", "60"))
 
+SANDBOX_TIMEOUT = int(os.getenv("SANDBOX_TIMEOUT", "120"))
+
+# Hosts sandboxed code may reach. Everything else is refused at the sandbox
+# boundary, which is what makes injecting a live API key tolerable: generated
+# code can spend the key against the model endpoint, but cannot POST it to an
+# attacker's collector. Widen this list only with that tradeoff in mind.
+# Both providers are listed so either LLM_PROVIDER works from inside the box.
+SANDBOX_ALLOWED_DOMAINS = [
+    d.strip()
+    for d in os.getenv(
+        "SANDBOX_ALLOWED_DOMAINS", "api.anthropic.com,hackathon.josephbissell.com"
+    ).split(",")
+    if d.strip()
+]
+
 
 class SandboxUnavailable(RuntimeError):
     pass
+
+
+def _sandbox_env() -> dict[str, str]:
+    """Credentials handed to code running inside the sandbox, so an agent can
+    call the model from in there rather than round-tripping through the host.
+
+    Only model credentials travel, for whichever provider is selected. Daytona's
+    own key stays on the host — sandboxed code that could read it could spawn
+    further sandboxes.
+    """
+    env = {"ANTHROPIC_MODEL": os.getenv("ANTHROPIC_MODEL", "claude-opus-5")}
+    if key := os.getenv("ANTHROPIC_API_KEY"):
+        env["ANTHROPIC_API_KEY"] = key
+    # OpenAI-compatible bridge credentials (the Daytona bots' model call), so
+    # code in the box reaches the same provider the agent outside it is using.
+    for var in ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY"):
+        if val := os.getenv(var):
+            env[var] = val
+    return env
 
 
 def sandbox_health(trace: Trace) -> dict[str, Any]:
@@ -95,18 +129,39 @@ def sandbox_run(code: str, trace: Trace | None = None) -> str:
             exec(code, {"__builtins__": __builtins__}, {})  # noqa: S102 — gated above
         return buf.getvalue()[:4000]
 
-    from daytona import Daytona, DaytonaConfig
+    from daytona import (
+        CodeRunParams,
+        CreateSandboxFromSnapshotParams,
+        Daytona,
+        DaytonaConfig,
+    )
 
     client = Daytona(DaytonaConfig(api_key=DAYTONA_API_KEY, api_url=DAYTONA_API_URL))
+    env = _sandbox_env()
 
     sb = None
     try:
-        with t.span("sandbox.create", "provisioning Daytona sandbox") as sp:
-            sb = client.create()
+        with t.span(
+            "sandbox.create", "provisioning Daytona sandbox",
+            allowedDomains=SANDBOX_ALLOWED_DOMAINS,
+            modelCredential=bool(env.get("ANTHROPIC_API_KEY")),
+        ) as sp:
+            sb = client.create(
+                CreateSandboxFromSnapshotParams(
+                    env_vars=env,
+                    # Deny-by-default egress; only the model endpoint is reachable.
+                    domain_allow_list=SANDBOX_ALLOWED_DOMAINS,
+                    # Torn down with the sandbox rather than lingering between runs.
+                    ephemeral=True,
+                    auto_stop_interval=AUTO_STOP_MINUTES,
+                    auto_delete_interval=AUTO_DELETE_MINUTES,
+                )
+            )
             sp["sandboxId"] = getattr(sb, "id", None)
 
-        with t.span("sandbox.exec", f"running {len(code)} chars of generated code") as sp:
-            res = sb.process.code_run(code)
+        with t.span("sandbox.exec", f"running {len(code)} chars of generated code",
+                    timeout=SANDBOX_TIMEOUT) as sp:
+            res = sb.process.code_run(code, CodeRunParams(env=env), timeout=SANDBOX_TIMEOUT)
             out = (getattr(res, "result", "") or "")[:4000]
             sp["exitCode"] = getattr(res, "exit_code", None)
             sp["outputChars"] = len(out)

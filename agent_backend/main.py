@@ -120,15 +120,15 @@ async def job_trace(job_id: str):
 async def health():
     """Is every external dependency this backend needs actually reachable?"""
     t = Trace("health")
-    llm_configured = bool(os.getenv("LLM_API_KEY"))
+    llm_configured = bool(os.getenv("ANTHROPIC_API_KEY"))
     if not llm_configured:
-        t.warn("health.llm", "LLM_API_KEY not set — the agent loop cannot run")
+        t.warn("health.llm", "ANTHROPIC_API_KEY not set — the agent loop cannot run")
     return {
         "ok": llm_configured,
         "llm": {
             "configured": llm_configured,
-            "model": os.getenv("LLM_MODEL", "gpt-4o"),
-            "baseUrl": os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"),
+            "model": os.getenv("ANTHROPIC_MODEL", "claude-opus-5"),
+            "effort": os.getenv("AGENT_EFFORT", "high"),
         },
         "sandbox": sandbox_health(t),
         "webSearch": {"configured": bool(os.getenv("TAVILY_API_KEY"))},

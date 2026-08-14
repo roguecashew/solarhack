@@ -1,5 +1,11 @@
-"""Tool layer available to agents. Document parsing and any generated code
-execution happen inside a Daytona sandbox, never on the host."""
+"""Tool layer available to agents.
+
+Generated code execution happens inside a Daytona sandbox (see sandbox.py).
+Document parsing does NOT — `pdf_extract` and `xlsx_extract` run pypdf and
+openpyxl in this process, on the host. That is a deliberate trade for speed on
+trusted dossiers, but it means a malicious PDF is parsed with host privileges;
+route untrusted uploads through `sandbox_run` before trusting their contents.
+"""
 from __future__ import annotations
 
 import os
@@ -9,41 +15,9 @@ from pathlib import Path
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 KB_DIR = Path(os.getenv("KB_DIR", str(_BACKEND_DIR / "research")))
 DOC_DIR = Path(os.getenv("DOC_DIR", str(_BACKEND_DIR / "project-docs")))
-DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")
 
-SANDBOX_TIMEOUT = int(os.getenv("SANDBOX_TIMEOUT", "120"))
-
-# Hosts sandboxed code may reach. Everything else is refused at the sandbox
-# boundary, which is what makes injecting a live API key below tolerable:
-# generated code can spend the key against the model endpoint, but cannot POST
-# it to an attacker's collector. Widen this list only with that tradeoff in mind.
-# Default allows Anthropic and the Fireworks bridge the Daytona bots call.
-SANDBOX_ALLOWED_DOMAINS = [
-    d.strip()
-    for d in os.getenv(
-        "SANDBOX_ALLOWED_DOMAINS", "api.anthropic.com,hackathon.josephbissell.com"
-    ).split(",")
-    if d.strip()
-]
-
-
-def _sandbox_env() -> dict[str, str]:
-    """Credentials handed to code running inside the sandbox, so an agent can
-    call the model from in there rather than round-tripping through the host.
-
-    Only model credentials travel. Daytona's own key stays on the host —
-    sandboxed code that could read it could spawn further sandboxes.
-    """
-    env = {"ANTHROPIC_MODEL": os.getenv("ANTHROPIC_MODEL", "claude-opus-5")}
-    if key := os.getenv("ANTHROPIC_API_KEY"):
-        env["ANTHROPIC_API_KEY"] = key
-    # OpenAI-compatible bridge credentials (the Daytona bots' LLM call).
-    if os.getenv("LLM_PROVIDER"):
-        env["LLM_PROVIDER"] = os.environ["LLM_PROVIDER"]
-    for var in ("LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY"):
-        if val := os.getenv(var):
-            env[var] = val
-    return env
+# Sandbox credentials, egress allow-list and timeouts live in sandbox.py,
+# next to the code that enforces them.
 
 
 def pdf_extract(filename: str) -> str:
@@ -110,31 +84,8 @@ def sandbox_run(code: str) -> str:
     The sandbox carries the model credential, so generated code can call
     Claude from inside it; egress is restricted to SANDBOX_ALLOWED_DOMAINS.
     """
-    if not DAYTONA_API_KEY:
-        import io, contextlib
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):  # local fallback for offline dev only
-            exec(code, {"__builtins__": __builtins__}, {})
-        return buf.getvalue()[:4000]
-
-    from daytona import CodeRunParams, CreateSandboxFromSnapshotParams, Daytona
-
-    env = _sandbox_env()
-    sandbox = Daytona().create(
-        CreateSandboxFromSnapshotParams(
-            env_vars=env,
-            # Deny-by-default egress; only the model endpoints are reachable.
-            # SDK expects a comma-separated string, not a list.
-            domain_allow_list=",".join(SANDBOX_ALLOWED_DOMAINS),
-            # Torn down with the sandbox rather than lingering between runs.
-            ephemeral=True,
-        )
-    )
-    try:
-        return sandbox.process.code_run(
-            code,
-            CodeRunParams(env=env),
-            timeout=SANDBOX_TIMEOUT,
-        ).result[:4000]
-    finally:
-        sandbox.delete()
+    # Implementation lives in sandbox.py, which traces the create/exec/delete
+    # lifecycle and refuses to fall back to host execution unless explicitly
+    # permitted. Imported lazily so tools.py stays importable without the SDK.
+    from .sandbox import sandbox_run as _run
+    return _run(code)
