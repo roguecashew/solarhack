@@ -10,9 +10,11 @@ import type {
   Project,
   ProjectDetail,
   ProjectStatus,
+  RecentActivity,
   RecentDocument,
   RiskBand,
   RiskFactorDefinition,
+  ScriptedQA,
 } from "./types";
 
 export const ITC_DEADLINE = "2030-12-31";
@@ -445,82 +447,47 @@ function pillarStatusText(band: RiskBand): string {
   return "1 flag open";
 }
 
-const mesaVerde: Project = {
-  id: "mesa-verde",
-  name: "Mesa Verde",
-  location: "Pecos County, Texas",
-  capacityMW: 220,
-  latitude: 30.88,
-  longitude: -102.88,
-  activationScore: 84,
-  band: "strong",
-  scoreReason:
-    "Permits, financing and offtake are all cleared; only a minor materials watch remains.",
-  status: "on-track",
-  pillars: (["Land", "Law", "Finance", "Materials", "Demand"] as const).map(
-    (name, i) => {
-      const band: RiskBand = name === "Materials" ? "watch" : "strong";
-      return {
-        name,
-        score: name === "Materials" ? 68 : [90, 86, 82, 68, 88][i],
-        band,
-        unlocked: band === "strong",
-        statusText: pillarStatusText(band),
-        subAgents: ["scan-a", "scan-b"],
-        factors: [
-          {
-            id: `mv-${name}-1`,
-            name: `${name} readiness`,
-            band,
-            statusLabel: band === "strong" ? "Cleared" : "Watch",
-            evidence:
-              band === "strong"
-                ? `${name} fully cleared with executed documentation.`
-                : "A minor supplier price notice is under review.",
-            sources: ["feasibility_study.pdf"],
-            ...(band !== "strong"
-              ? {
-                  whyItMatters:
-                    "A price notice could add a small amount to the equipment package if unaddressed.",
-                  recommendedSteps: [
-                    "Confirm the notice against the executed quote.",
-                    "Update the budget contingency line.",
-                  ],
-                }
-              : {}),
-          },
-        ],
-      };
-    },
-  ),
-};
+const PILLAR_NAMES = ["Land", "Law", "Finance", "Materials", "Demand"] as const;
 
-const rioseco: Project = {
-  id: "rio-seco",
-  name: "Rio Seco",
-  location: "Doña Ana County, New Mexico",
-  capacityMW: 150,
-  latitude: 32.31,
-  longitude: -106.77,
-  activationScore: 44,
-  band: "watch",
-  scoreReason:
-    "Interconnection queue position and a permit review keep two components in watch.",
-  status: "needs-review",
-  pillars: (["Land", "Law", "Finance", "Materials", "Demand"] as const).map(
-    (name, i) => {
-      const bands: RiskBand[] = ["strong", "watch", "watch", "strong", "risk"];
-      const band = bands[i];
+function makeSibling(opts: {
+  id: string;
+  name: string;
+  tech: string;
+  capacityMW: number;
+  location: string;
+  latitude: number;
+  longitude: number;
+  activationScore: number;
+  band: RiskBand;
+  status: ProjectStatus;
+  scoreReason: string;
+  pillarBands: RiskBand[];
+  pillarScores: number[];
+}): Project {
+  return {
+    id: opts.id,
+    name: opts.name,
+    tech: opts.tech,
+    location: opts.location,
+    capacityMW: opts.capacityMW,
+    latitude: opts.latitude,
+    longitude: opts.longitude,
+    activationScore: opts.activationScore,
+    band: opts.band,
+    scoreReason: opts.scoreReason,
+    status: opts.status,
+    pillars: PILLAR_NAMES.map((name, i) => {
+      const band = opts.pillarBands[i];
       return {
         name,
-        score: [74, 52, 58, 71, 34][i],
+        score: opts.pillarScores[i],
         band,
         unlocked: band === "strong",
         statusText: pillarStatusText(band),
         subAgents: ["scan-a", "scan-b"],
         factors: [
           {
-            id: `rs-${name}-1`,
+            id: `${opts.id}-${name}-1`,
             name: `${name} readiness`,
             band,
             statusLabel:
@@ -530,24 +497,91 @@ const rioseco: Project = {
                 ? `${name} cleared with no open items.`
                 : band === "watch"
                   ? `${name} has one item under review.`
-                  : "Interconnection queue position is unresolved.",
+                  : `${name} has an open item that needs resolution.`,
             sources: ["feasibility_study.pdf"],
             ...(band !== "strong"
               ? {
-                  whyItMatters:
-                    "An unresolved queue position can shift interconnection cost and timing materially.",
+                  whyItMatters: `The open ${name.toLowerCase()} item can shift cost or timing if it is not resolved before the next milestone.`,
                   recommendedSteps: [
-                    "Request the latest cluster restudy results.",
-                    "Model the cost sensitivity to a queue change.",
+                    `Request the latest ${name.toLowerCase()} documentation.`,
+                    "Update the model and re-check covenant headroom.",
                   ],
                 }
               : {}),
           },
         ],
       };
-    },
-  ),
-};
+    }),
+  };
+}
+
+const projectBeta = makeSibling({
+  id: "project-beta",
+  name: "Project Beta",
+  tech: "Solar + BESS",
+  capacityMW: 240,
+  location: "Nevada",
+  latitude: 39.16,
+  longitude: -117.0,
+  activationScore: 84,
+  band: "strong",
+  status: "on-track",
+  scoreReason:
+    "Site control, permits, financing and offtake are all cleared — on track to activation.",
+  pillarBands: ["strong", "strong", "strong", "watch", "strong"],
+  pillarScores: [90, 86, 82, 68, 88],
+});
+
+const projectGamma = makeSibling({
+  id: "project-gamma",
+  name: "Project Gamma",
+  tech: "Solar",
+  capacityMW: 95,
+  location: "New Mexico",
+  latitude: 34.52,
+  longitude: -105.87,
+  activationScore: 41,
+  band: "risk",
+  status: "at-risk",
+  scoreReason:
+    "An unresolved interconnection queue position and an open permit put activation at risk.",
+  pillarBands: ["watch", "risk", "watch", "watch", "risk"],
+  pillarScores: [58, 34, 52, 55, 33],
+});
+
+const projectDelta = makeSibling({
+  id: "project-delta",
+  name: "Project Delta",
+  tech: "Solar",
+  capacityMW: 60,
+  location: "Arizona",
+  latitude: 33.45,
+  longitude: -112.07,
+  activationScore: 79,
+  band: "strong",
+  status: "on-track",
+  scoreReason:
+    "Fundamentals are cleared; only a minor materials watch remains before full activation.",
+  pillarBands: ["strong", "strong", "watch", "strong", "strong"],
+  pillarScores: [88, 80, 66, 84, 86],
+});
+
+const projectEpsilon = makeSibling({
+  id: "project-epsilon",
+  name: "Project Epsilon",
+  tech: "Solar",
+  capacityMW: 310,
+  location: "Colorado",
+  latitude: 39.55,
+  longitude: -105.78,
+  activationScore: 57,
+  band: "watch",
+  status: "needs-review",
+  scoreReason:
+    "A pending permit review and a partially contracted offtake keep two components in review.",
+  pillarBands: ["strong", "watch", "watch", "strong", "watch"],
+  pillarScores: [76, 52, 58, 74, 50],
+});
 
 function lightDetail(project: Project): ProjectDetail {
   const openFactors = project.pillars
@@ -555,7 +589,7 @@ function lightDetail(project: Project): ProjectDetail {
     .filter((f) => f.band !== "strong");
   return {
     project,
-    eyebrow: `Solar · ${project.capacityMW} MW · ${project.location}`,
+    eyebrow: `${project.tech ?? "Solar"} · ${project.capacityMW} MW · ${project.location}`,
     runSummary: "5 documents + 2 sheets analyzed",
     scoreBandLabel:
       project.band === "strong"
@@ -668,11 +702,19 @@ function lightDetail(project: Project): ProjectDetail {
 
 export const projectDetails: Record<string, ProjectDetail> = {
   [projectAlpha.id]: projectAlphaDetail,
-  [mesaVerde.id]: lightDetail(mesaVerde),
-  [rioseco.id]: lightDetail(rioseco),
+  [projectBeta.id]: lightDetail(projectBeta),
+  [projectGamma.id]: lightDetail(projectGamma),
+  [projectDelta.id]: lightDetail(projectDelta),
+  [projectEpsilon.id]: lightDetail(projectEpsilon),
 };
 
-export const projects: Project[] = [projectAlpha, mesaVerde, rioseco];
+export const projects: Project[] = [
+  projectAlpha,
+  projectBeta,
+  projectGamma,
+  projectDelta,
+  projectEpsilon,
+];
 
 export function getProject(id: string): Project | undefined {
   return projectDetails[id]?.project;
@@ -696,6 +738,33 @@ export function portfolioSummary() {
 export const recentDocuments: RecentDocument[] = [
   { title: "vendor_proposal.pdf", project: "Project Alpha", status: "Analyzed", addedAt: "2026-08-14" },
   { title: "permit_application.pdf", project: "Project Alpha", status: "Analyzed", addedAt: "2026-08-14" },
-  { title: "offtake_agreement.pdf", project: "Rio Seco", status: "Scanning", addedAt: "2026-08-14" },
-  { title: "interconnection_study.pdf", project: "Mesa Verde", status: "Queued", addedAt: "2026-08-13" },
+  { title: "offtake_agreement.pdf", project: "Project Epsilon", status: "Scanning", addedAt: "2026-08-14" },
+  { title: "interconnection_study.pdf", project: "Project Gamma", status: "Queued", addedAt: "2026-08-13" },
+];
+
+/** Home "recent activity" — mixed project and document rows. */
+export const recentActivity: RecentActivity[] = [
+  { name: "Project Epsilon", kind: "Project", status: "needs-review", time: "Yesterday" },
+  { name: "vendor_proposal.pdf", kind: "Document", project: "Project Alpha", time: "Yesterday" },
+  { name: "Project Gamma", kind: "Project", status: "at-risk", time: "3 days ago" },
+  { name: "feasibility_study.pdf", kind: "Document", project: "Project Alpha", time: "3 days ago" },
+  { name: "Project Beta", kind: "Project", status: "on-track", time: "5 days ago" },
+];
+
+/** Portfolio-level scripted answers for the Home / Current Projects rail. */
+export const portfolioSuggestedQuestions: ScriptedQA[] = [
+  {
+    question: "Which projects need review?",
+    answer: {
+      role: "assistant",
+      text: "Two projects are flagged for review — Project Alpha (a permit-timeline conflict and a CAPEX variance) and Project Epsilon (a pending permit review and partially contracted offtake). Project Gamma is the one at-risk project, held back by an unresolved interconnection queue position.",
+    },
+  },
+  {
+    question: "What's blocking the December deadline?",
+    answer: {
+      role: "assistant",
+      text: "Across the pipeline the recurring blockers are permit timing and interconnection: Alpha's construction is scheduled ahead of its permit, Gamma's queue position is unresolved, and Epsilon's permit review is still open. Beta and Delta are clear.",
+    },
+  },
 ];

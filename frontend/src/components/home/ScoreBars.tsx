@@ -5,37 +5,38 @@ import { bandColorVar } from "@/lib/band";
 import type { RiskBand } from "@/lib/types";
 
 export type ScoreBarRow = {
+  /** Short project name shown under the bar, e.g. "Alpha". */
   name: string;
   score: number;
   band: RiskBand;
 };
 
 /**
- * Horizontal bar chart of each project's activation score, colored by risk
- * band. Built from plain divs + framer width — no chart library, no icons.
+ * Vertical bar chart of each project's activation score, colored by risk band.
+ * Built from plain divs + framer height — no chart library, no icons. Matches
+ * the reference `.bar-chart` (120px tall, bars capped at 34px wide).
  */
 export function ScoreBars({ rows }: { rows: ScoreBarRow[] }) {
   return (
-    <div className="space-y-3">
+    <div className="flex h-[120px] items-end gap-[14px] pt-[10px]">
       {rows.map((row) => {
         const pct = Math.max(0, Math.min(100, row.score));
         return (
-          <div key={row.name} className="flex items-center gap-3">
-            <span className="w-28 shrink-0 truncate text-sm text-ink">
-              {row.name}
-            </span>
-            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ backgroundColor: bandColorVar[row.band] }}
-                initial={{ width: 0 }}
-                animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
-            <span className="w-7 shrink-0 text-right text-sm font-medium tabular-nums text-ink">
+          <div
+            key={row.name}
+            className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+          >
+            <div className="text-[10.5px] font-medium text-muted tabular-nums">
               {row.score}
-            </span>
+            </div>
+            <motion.div
+              className="w-full max-w-[34px] rounded-t-[4px]"
+              style={{ backgroundColor: bandColorVar[row.band] }}
+              initial={{ height: 0 }}
+              animate={{ height: `${pct}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+            <div className="text-[10.5px] text-faint">{row.name}</div>
           </div>
         );
       })}

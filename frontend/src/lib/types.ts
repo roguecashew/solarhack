@@ -43,6 +43,8 @@ export type Project = {
   id: string;
   name: string;
   location: string;
+  /** Technology descriptor, e.g. "Solar" or "Solar + BESS". */
+  tech?: string;
   capacityMW: number;
   latitude: number;
   longitude: number;
@@ -173,6 +175,17 @@ export type RecentDocument = {
   project: string;
   status: "Analyzed" | "Scanning" | "Queued";
   addedAt: string;
+};
+
+/** A row in the Home "recent activity" table — a project or a document. */
+export type RecentActivity = {
+  name: string;
+  kind: "Project" | "Document";
+  /** Present for project rows — drives the status pill. */
+  status?: ProjectStatus;
+  /** Present for document rows — the project it belongs to. */
+  project?: string;
+  time: string;
 };
 
 export type ReportContent = {
