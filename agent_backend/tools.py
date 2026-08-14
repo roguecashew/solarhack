@@ -11,6 +11,31 @@ KB_DIR = Path(os.getenv("KB_DIR", str(_BACKEND_DIR / "research")))
 DOC_DIR = Path(os.getenv("DOC_DIR", str(_BACKEND_DIR / "project-docs")))
 DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")
 
+SANDBOX_TIMEOUT = int(os.getenv("SANDBOX_TIMEOUT", "120"))
+
+# Hosts sandboxed code may reach. Everything else is refused at the sandbox
+# boundary, which is what makes injecting a live API key below tolerable:
+# generated code can spend the key against Anthropic, but cannot POST it to an
+# attacker's collector. Widen this list only with that tradeoff in mind.
+SANDBOX_ALLOWED_DOMAINS = [
+    d.strip()
+    for d in os.getenv("SANDBOX_ALLOWED_DOMAINS", "api.anthropic.com").split(",")
+    if d.strip()
+]
+
+
+def _sandbox_env() -> dict[str, str]:
+    """Credentials handed to code running inside the sandbox, so an agent can
+    call the model from in there rather than round-tripping through the host.
+
+    Only the model credential travels. Daytona's own key stays on the host —
+    sandboxed code that could read it could spawn further sandboxes.
+    """
+    env = {"ANTHROPIC_MODEL": os.getenv("ANTHROPIC_MODEL", "claude-opus-5")}
+    if key := os.getenv("ANTHROPIC_API_KEY"):
+        env["ANTHROPIC_API_KEY"] = key
+    return env
+
 
 def pdf_extract(filename: str) -> str:
     """Extract full text of a PDF dossier with page markers. Runs in the sandbox."""
@@ -71,16 +96,35 @@ def web_fetch(url: str) -> str:
 
 def sandbox_run(code: str) -> str:
     """Execute untrusted generated code in an isolated Daytona sandbox
-    (parsing, reconciliation math, scoring) — never on the host."""
+    (parsing, reconciliation math, scoring) — never on the host.
+
+    The sandbox carries the model credential, so generated code can call
+    Claude from inside it; egress is restricted to SANDBOX_ALLOWED_DOMAINS.
+    """
     if not DAYTONA_API_KEY:
         import io, contextlib
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):  # local fallback for offline dev only
             exec(code, {"__builtins__": __builtins__}, {})
         return buf.getvalue()[:4000]
-    from daytona import Daytona
-    sb = Daytona().create()
+
+    from daytona import CodeRunParams, CreateSandboxFromSnapshotParams, Daytona
+
+    env = _sandbox_env()
+    sandbox = Daytona().create(
+        CreateSandboxFromSnapshotParams(
+            env_vars=env,
+            # Deny-by-default egress; only the model endpoint is reachable.
+            domain_allow_list=SANDBOX_ALLOWED_DOMAINS,
+            # Torn down with the sandbox rather than lingering between runs.
+            ephemeral=True,
+        )
+    )
     try:
-        return sb.process.code_run(code).result[:4000]
+        return sandbox.process.code_run(
+            code,
+            CodeRunParams(env=env),
+            timeout=SANDBOX_TIMEOUT,
+        ).result[:4000]
     finally:
-        sb.delete()
+        sandbox.delete()

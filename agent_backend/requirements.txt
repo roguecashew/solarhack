@@ -4,5 +4,6 @@ httpx
 pydantic
 pypdf
 openpyxl
-# optional: daytona-sdk  (nested sandbox execution — set DAYTONA_API_KEY)
+anthropic
+# optional: daytona  (nested sandbox execution — set DAYTONA_API_KEY)
 # optional: tavily is called over plain httpx; set TAVILY_API_KEY to enable live web_search

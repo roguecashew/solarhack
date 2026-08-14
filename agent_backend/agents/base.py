@@ -5,21 +5,43 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Callable
 
-import httpx
+import anthropic
 from pydantic import BaseModel, ValidationError
 
 MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "8"))
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
-LLM_API_KEY = os.getenv("LLM_API_KEY", "")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+
+# Claude Opus 5 — the most capable model for long-horizon agentic work, which
+# is what this pipeline is. Override per-role if a cheaper tier suffices.
+LLM_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-5")
+
+# Caps thinking *and* response text together. Adaptive thinking is on by
+# default on Opus 5, so a budget sized only for the answer truncates mid-turn.
+MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", "16000"))
+
+# low | medium | high | xhigh | max. `high` is the API default and a sane
+# starting point; `xhigh` buys more tool use and deeper planning per turn but
+# wants a much larger MAX_TOKENS to go with it.
+EFFORT = os.getenv("AGENT_EFFORT", "high")
 
 ToolFn = Callable[..., Any]
+
+# Reads ANTHROPIC_API_KEY from the environment. One client for the process:
+# it pools connections across every agent in the fan-out.
+_client = anthropic.AsyncAnthropic()
+
+_JSON_FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
 
 class AgentDidNotConverge(Exception):
     pass
+
+
+class AgentRefused(Exception):
+    """Safety classifiers declined the request. Not a bug in the pipeline —
+    the cyber and bio classifiers occasionally fire on benign diligence text."""
 
 
 class Agent:
@@ -40,33 +62,35 @@ class Agent:
     def _tool_specs(self) -> list[dict]:
         return [
             {
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "description": (fn.__doc__ or name).strip(),
-                    "parameters": getattr(fn, "schema", {"type": "object", "properties": {}}),
-                },
+                "name": name,
+                "description": (fn.__doc__ or name).strip(),
+                "input_schema": getattr(fn, "schema", {"type": "object", "properties": {}}),
             }
             for name, fn in self.tools.items()
         ]
 
-    async def _chat(self, messages: list[dict]) -> dict:
-        payload: dict[str, Any] = {"model": LLM_MODEL, "messages": messages, "temperature": 0}
+    async def _chat(self, messages: list[dict]):
+        kwargs: dict[str, Any] = {
+            "model": LLM_MODEL,
+            "max_tokens": MAX_TOKENS,
+            "system": self.role_prompt,
+            "messages": messages,
+            # Adaptive rather than a fixed token budget: Claude sizes its own
+            # reasoning per turn. Fixed `budget_tokens` is rejected on Opus 5.
+            "thinking": {"type": "adaptive"},
+            "output_config": {"effort": EFFORT},
+        }
         if self.tools:
-            payload["tools"] = self._tool_specs()
-        async with httpx.AsyncClient(timeout=120) as client:
-            r = await client.post(
-                f"{LLM_BASE_URL}/chat/completions",
-                headers={"Authorization": f"Bearer {LLM_API_KEY}"},
-                json=payload,
-            )
-            r.raise_for_status()
-            return r.json()["choices"][0]["message"]
+            kwargs["tools"] = self._tool_specs()
+        # No `temperature`: sampling parameters return a 400 on Opus 5.
+        # Steer behaviour through the role prompt instead.
+        return await _client.messages.create(**kwargs)
 
     async def run(self, task: str, context: dict[str, Any] | None = None) -> BaseModel:
         self.on_status(f"[{self.name}] starting")
-        messages = [
-            {"role": "system", "content": self.role_prompt},
+        # The role prompt rides in `system`, not as a message — that keeps the
+        # cached prefix stable across every turn of the loop.
+        messages: list[dict[str, Any]] = [
             {
                 "role": "user",
                 "content": (
@@ -76,31 +100,57 @@ class Agent:
                 ),
             },
         ]
+
         for _ in range(MAX_STEPS):
-            msg = await self._chat(messages)
-            tool_calls = msg.get("tool_calls") or []
-            if not tool_calls:
+            response = await self._chat(messages)
+
+            if response.stop_reason == "refusal":
+                detail = getattr(response.stop_details, "category", None)
+                raise AgentRefused(f"{self.name}: refused ({detail})")
+
+            # Echo the whole assistant turn back — thinking blocks included and
+            # unmodified. Editing or dropping them breaks the next turn.
+            messages.append({"role": "assistant", "content": response.content})
+
+            tool_uses = [b for b in response.content if b.type == "tool_use"]
+
+            if not tool_uses:
+                text = "".join(b.text for b in response.content if b.type == "text")
                 try:
-                    data = json.loads(msg["content"])
-                    result = self.contract.model_validate(data)
+                    result = self.contract.model_validate(
+                        json.loads(_JSON_FENCE.sub("", text))
+                    )
                     self.on_status(f"[{self.name}] done")
                     return result
-                except (json.JSONDecodeError, ValidationError, KeyError, TypeError) as e:
-                    messages.append({"role": "assistant", "content": msg.get("content") or ""})
-                    messages.append({"role": "user", "content": f"Invalid output ({e}). Return ONLY valid JSON matching the schema."})
+                except (json.JSONDecodeError, ValidationError, TypeError) as e:
+                    messages.append({
+                        "role": "user",
+                        "content": f"Invalid output ({e}). Return ONLY valid JSON matching the schema.",
+                    })
                     continue
-            messages.append(msg)
-            for call in tool_calls:
-                fn_name = call["function"]["name"]
-                args = json.loads(call["function"]["arguments"] or "{}")
-                self.on_status(f"[{self.name}] {fn_name}({json.dumps(args)[:80]})")
+
+            results = []
+            for call in tool_uses:
+                args = call.input or {}
+                self.on_status(f"[{self.name}] {call.name}({json.dumps(args, default=str)[:80]})")
+                is_error = False
                 try:
-                    result = self.tools[fn_name](**args) if fn_name in self.tools else f"unknown tool {fn_name}"
+                    output = (
+                        self.tools[call.name](**args)
+                        if call.name in self.tools
+                        else f"unknown tool {call.name}"
+                    )
                 except Exception as e:  # tool failures are observations, not crashes
-                    result = f"tool error: {e}"
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": call["id"],
-                    "content": str(result)[:8000],
+                    output, is_error = f"tool error: {e}", True
+                results.append({
+                    "type": "tool_result",
+                    "tool_use_id": call.id,
+                    "content": str(output)[:8000],
+                    "is_error": is_error,
                 })
+
+            # Every tool_result for a turn goes back in ONE user message —
+            # splitting them trains the model out of parallel tool calls.
+            messages.append({"role": "user", "content": results})
+
         raise AgentDidNotConverge(self.name)
