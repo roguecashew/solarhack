@@ -57,7 +57,7 @@ const bandOptions = [
 ];
 
 export default function SettingsPage() {
-  const [workspace, setWorkspace] = useState("Sentinel Capital");
+  const [workspace, setWorkspace] = useState("RAI Capital");
   const [prefs, setPrefs] = useState({
     autoRun: true,
     contradictions: true,
@@ -107,7 +107,7 @@ export default function SettingsPage() {
             Analysis preferences
           </h2>
           <p className="mt-0.5 text-xs text-muted">
-            Control how Sentinel processes new documents.
+            Control how RAI processes new documents.
           </p>
           <div className="mt-2 divide-y divide-hairline">
             <Switch

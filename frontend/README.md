@@ -1,6 +1,6 @@
-# Solar Sentinel — frontend
+# RAI — frontend
 
-An AI due-diligence copilot for solar capital projects. Solar Sentinel reads a
+An AI due-diligence copilot for solar capital projects. RAI reads a
 project's document set, scores how close it is to activation across five risk
 pillars (Land, Law, Finance, Materials, Demand), surfaces cross-document
 contradictions, and recommends next actions — every claim traceable to a source.

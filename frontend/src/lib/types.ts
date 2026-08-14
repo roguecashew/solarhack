@@ -1,4 +1,4 @@
-// Solar Sentinel data contract.
+// RAI data contract.
 //
 // Components consume these shapes as props — no data is hardcoded inside
 // components. The backend swaps mock JSON for real Bedrock-agent output
@@ -140,7 +140,7 @@ export type ChatMessage = {
   actions?: ChatAction[];
 };
 
-/** A scripted suggested-question → answer pair for the Sentinel Assistant. */
+/** A scripted suggested-question → answer pair for the RAI assistant. */
 export type ScriptedQA = {
   question: string;
   answer: ChatMessage;
