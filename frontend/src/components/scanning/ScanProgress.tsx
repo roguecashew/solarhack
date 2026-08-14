@@ -12,8 +12,9 @@ type ScanProgressProps = {
 
 /**
  * The moving progress indicator: a rounded bar that visibly fills left→right,
- * with the document currently being read and a live percentage. Brand orange
- * marks work-in-progress — a structural accent, never a risk status.
+ * with the document currently being read and a live percentage. Vista marks
+ * work-in-progress — a structural accent, never a status or the reserved brand
+ * orange.
  */
 export function ScanProgress({ percent, file, done }: ScanProgressProps) {
   const pct = Math.max(0, Math.min(100, Math.round(percent)));
@@ -24,7 +25,7 @@ export function ScanProgress({ percent, file, done }: ScanProgressProps) {
           {!done && (
             <motion.span
               aria-hidden
-              className="inline-block h-2 w-2 shrink-0 rounded-full bg-brand"
+              className="inline-block h-2 w-2 shrink-0 rounded-full bg-vista"
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
             />
@@ -41,7 +42,7 @@ export function ScanProgress({ percent, file, done }: ScanProgressProps) {
 
       <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
         <motion.div
-          className="h-full rounded-full bg-brand"
+          className="h-full rounded-full bg-vista"
           initial={{ width: "0%" }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.25, ease: "linear" }}

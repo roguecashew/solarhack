@@ -50,7 +50,7 @@ export default function HomePage() {
           contradictions between documents, and score how close it is to
           activation.
         </p>
-        <p className="mt-2 text-sm text-brand">{ITC_DEADLINE_LABEL}</p>
+        <p className="mt-2 text-sm text-muted">{ITC_DEADLINE_LABEL}</p>
       </header>
 
       <DropZone />
@@ -78,7 +78,7 @@ export default function HomePage() {
           </h2>
           <p className="mt-1 text-sm text-muted">
             Higher is closer to activation. Bars are colored by risk band, so a
-            red bar means open red flags — not just a low number.
+            flagged bar reflects open flags — not just a low number.
           </p>
           <div className="mt-5">
             <ScoreBars rows={scoreRows} />

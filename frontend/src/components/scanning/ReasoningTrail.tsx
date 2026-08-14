@@ -35,7 +35,7 @@ export function ReasoningTrail({ steps }: ReasoningTrailProps) {
   }, [steps.length]);
 
   return (
-    <div className="h-72 overflow-y-auto rounded-[12px] bg-surface-2 p-4">
+    <div className="h-72 overflow-y-auto rounded-[5px] bg-surface-2 p-4">
       <ol className="space-y-2.5">
         <AnimatePresence initial={false}>
           {steps.map((step, i) => (

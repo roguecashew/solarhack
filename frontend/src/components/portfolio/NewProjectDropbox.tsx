@@ -34,9 +34,9 @@ export function NewProjectDropbox() {
           start();
         }}
         className={clsx(
-          "flex w-full flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed px-6 py-10 text-center transition-colors",
+          "flex w-full flex-col items-center justify-center gap-2 rounded-[11px] border border-dashed px-6 py-10 text-center transition-colors",
           dragging
-            ? "border-brand bg-brand-soft"
+            ? "border-hairline bg-select"
             : "border-hairline bg-white hover:bg-surface-2",
         )}
       >
@@ -46,7 +46,7 @@ export function NewProjectDropbox() {
         <span className="text-xs text-muted">
           One or several files become one project.
         </span>
-        <span className="mt-2 text-xs font-medium text-brand">
+        <span className="mt-2 text-xs font-medium text-vista">
           Or click to browse
         </span>
       </button>

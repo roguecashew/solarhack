@@ -35,7 +35,7 @@ function Switch({
         <span
           className={clsx(
             "h-5 w-9 rounded-full transition-colors",
-            checked ? "bg-brand" : "bg-surface-2",
+            checked ? "bg-ink" : "bg-surface-2",
             "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2",
           )}
         />
@@ -95,7 +95,7 @@ export default function SettingsPage() {
               type="text"
               value={workspace}
               onChange={(e) => setWorkspace(e.target.value)}
-              className="mt-2 w-full rounded-[8px] border border-hairline bg-white px-3 py-2 text-sm text-ink placeholder:text-faint"
+              className="mt-2 w-full rounded-[5px] border border-hairline bg-white px-3 py-2 text-sm text-ink placeholder:text-faint"
               placeholder="Workspace name"
             />
           </div>
@@ -154,7 +154,7 @@ export default function SettingsPage() {
                 max={100}
                 value={clearedAt}
                 onChange={(e) => setClearedAt(Number(e.target.value))}
-                className="mt-2 w-full rounded-[8px] border border-hairline bg-white px-3 py-2 text-sm text-ink"
+                className="mt-2 w-full rounded-[5px] border border-hairline bg-white px-3 py-2 text-sm text-ink"
               />
             </div>
             <div>
@@ -172,12 +172,12 @@ export default function SettingsPage() {
                 max={100}
                 value={watchAt}
                 onChange={(e) => setWatchAt(Number(e.target.value))}
-                className="mt-2 w-full rounded-[8px] border border-hairline bg-white px-3 py-2 text-sm text-ink"
+                className="mt-2 w-full rounded-[5px] border border-hairline bg-white px-3 py-2 text-sm text-ink"
               />
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-[12px] bg-surface-2 px-4 py-3 text-xs text-muted">
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-[5px] bg-surface-2 px-4 py-3 text-xs text-muted">
             <span>Preview:</span>
             {bandOptions.map((o) => (
               <StatusPill key={o.band} band={o.band} label={o.label} size="sm" />
