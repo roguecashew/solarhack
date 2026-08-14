@@ -14,3 +14,9 @@ dist-ssr
 # expected filenames. Scoring tests do not need them (the workbook values are
 # transcribed into shared/src/scoring.fixture.ts).
 data/
+
+# Python virtualenv
+.venv/
+venv/
+__pycache__/
+*.pyc

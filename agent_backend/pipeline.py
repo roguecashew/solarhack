@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Callable
 
 from .agents.base import Agent, AgentDidNotConverge
+from .obs import Trace
 from .agents.roles import (
     ORCHESTRATOR, DOC_EXTRACTOR, GAP_ANALYZER, DATA_SCOUT, RESEARCHER,
     CROSS_EXAMINER, SCORER, LIAISON, ROLE_TOOLS,
@@ -18,8 +19,9 @@ from .schemas import (
 StatusFn = Callable[[str], None]
 
 
-def _agent(name: str, prompt: str, contract, role: str, on_status: StatusFn) -> Agent:
-    return Agent(name, prompt, contract, ROLE_TOOLS.get(role, {}), on_status)
+def _agent(name: str, prompt: str, contract, role: str, on_status: StatusFn,
+           trace: Trace | None = None) -> Agent:
+    return Agent(name, prompt, contract, ROLE_TOOLS.get(role, {}), on_status, trace)
 
 
 async def run_pipeline(
@@ -27,26 +29,35 @@ async def run_pipeline(
     location: str,
     docs: list[str],
     on_status: StatusFn = print,
+    trace: Trace | None = None,
 ) -> Report:
+    trace = trace or Trace()
+    trace.event(
+        "job.input", f"{project_name} @ {location}",
+        documents=docs, documentCount=len(docs),
+    )
+    trace.event("phase", "building project profile + diligence plan", phase="orchestrate")
     # 1. Orchestrate: build the project profile + diligence plan
     profile: ProjectProfile = await _agent(
-        "Orchestrator", ORCHESTRATOR, ProjectProfile, "orchestrator", on_status
+        "Orchestrator", ORCHESTRATOR, ProjectProfile, "orchestrator", on_status, trace
     ).run(
         "Build the diligence plan for this project.",
         {"request": {"name": project_name, "location": location, "documents": docs}},
     )
 
+    trace.event("phase", "parallel document extraction", phase="extract")
     # 2. Extract: one extractor per doc, parallel — then gap analysis needs the facts
     fact_sets: list[FactSet] = list(await asyncio.gather(*[
-        _agent(f"Extractor:{d}", DOC_EXTRACTOR, FactSet, "doc_extractor", on_status).run(
+        _agent(f"Extractor:{d}", DOC_EXTRACTOR, FactSet, "doc_extractor", on_status, trace).run(
             f"Extract all structured facts from '{d}' ({'PDF' if d.endswith('.pdf') else 'XLSX'}).",
             {"project": profile.model_dump()},
         )
         for d in docs
     ]))
+    trace.event("phase", "auditing package completeness", phase="gap")
     # 2b. Gap analysis: what does a full diligence package need that the docs lack?
     gap: GapAnalysis = await _agent(
-        "GapAnalyzer", GAP_ANALYZER, GapAnalysis, "gap_analyzer", on_status
+        "GapAnalyzer", GAP_ANALYZER, GapAnalysis, "gap_analyzer", on_status, trace
     ).run(
         "Compare the extracted facts against full diligence data requirements. List every missing data need.",
         {"project": profile.model_dump(), "facts": [f.model_dump() for f in fact_sets]},
@@ -55,7 +66,7 @@ async def run_pipeline(
     # 2c. Data acquisition: one scout per need, pulling real data from public sources
     on_status(f"[pipeline] {len(gap.needs)} data gaps found — dispatching data scouts")
     acquired: list[AcquiredData] = list(await asyncio.gather(*[
-        _agent(f"DataScout:{n.component}", DATA_SCOUT, AcquiredData, "data_scout", on_status).run(
+        _agent(f"DataScout:{n.component}", DATA_SCOUT, AcquiredData, "data_scout", on_status, trace).run(
             f"Acquire this missing diligence data: {n.missing}\nWhy it matters: {n.why_it_matters}",
             {"project": profile.model_dump(), "source_hint": n.source_hint},
         )
@@ -64,7 +75,7 @@ async def run_pipeline(
     acquired_ctx = [a.model_dump() for a in acquired]
 
     researchers = [
-        _agent(f"Researcher:{c}", RESEARCHER, Findings, "researcher", on_status).run(
+        _agent(f"Researcher:{c}", RESEARCHER, Findings, "researcher", on_status, trace).run(
             f"Research the '{c}' component for this project and flag benchmark violations. "
             "Acquired data from scouts is included in context — use it.",
             {"project": profile.model_dump(), "acquired": acquired_ctx},
@@ -73,9 +84,10 @@ async def run_pipeline(
     ]
     findings = await asyncio.gather(*researchers)
 
+    trace.event("phase", "finding contradictions between documents", phase="cross_examine")
     # 3. Cross-examine (with a single research feedback loop)
     contradictions: ContradictionSet = await _agent(
-        "CrossExaminer", CROSS_EXAMINER, ContradictionSet, "cross_examiner", on_status
+        "CrossExaminer", CROSS_EXAMINER, ContradictionSet, "cross_examiner", on_status, trace
     ).run(
         "Cross-examine all extracted facts against each other and against research findings.",
         {
@@ -86,7 +98,7 @@ async def run_pipeline(
     )
     if contradictions.needs_more_research:
         followups = await asyncio.gather(*[
-            _agent(f"Researcher:{r.component}:followup", RESEARCHER, Findings, "researcher", on_status).run(
+            _agent(f"Researcher:{r.component}:followup", RESEARCHER, Findings, "researcher", on_status, trace).run(
                 f"Follow-up question: {r.question}",
                 {"project": profile.model_dump(), "component": r.component},
             )
@@ -94,8 +106,9 @@ async def run_pipeline(
         ])
         findings = list(findings) + list(followups)
 
+    trace.event("phase", "weighted rubric → readiness + decision", phase="score")
     # 4. Score
-    score: Score = await _agent("Scorer", SCORER, Score, "scorer", on_status).run(
+    score: Score = await _agent("Scorer", SCORER, Score, "scorer", on_status, trace).run(
         "Score the project and issue a decision.",
         {
             "project": profile.model_dump(),
@@ -104,8 +117,9 @@ async def run_pipeline(
         },
     )
 
+    trace.event("phase", "drafting RFIs and agency actions", phase="liaison")
     # 5. Liaison artifacts
-    actions: ActionPack = await _agent("Liaison", LIAISON, ActionPack, "liaison", on_status).run(
+    actions: ActionPack = await _agent("Liaison", LIAISON, ActionPack, "liaison", on_status, trace).run(
         "Produce the liaison action pack for the deal team.",
         {
             "project": profile.model_dump(),
@@ -115,8 +129,15 @@ async def run_pipeline(
         },
     )
 
+    trace.event("phase", "assembling the typed report", phase="compose")
     # 6. Compose report
     all_flags = [flag for f in findings for flag in f.red_flags]
+    trace.event(
+        "job.output", f"readiness={score.readiness} decision={score.decision}",
+        readiness=score.readiness, decision=score.decision,
+        redFlags=len(all_flags), contradictions=len(contradictions.contradictions),
+        dimensions={d.name: d.score for d in score.dimensions},
+    )
     return Report(
         project=profile.name,
         location=f"{profile.county} County, {profile.state}",

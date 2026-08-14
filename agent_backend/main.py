@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
+import traceback
 import uuid
 from pathlib import Path
 
@@ -15,7 +17,9 @@ from pydantic import BaseModel
 
 from .agents.base import Agent
 from .agents.roles import ANALYST, ROLE_TOOLS
+from .obs import Trace
 from .pipeline import run_pipeline
+from .sandbox import sandbox_health, sandbox_selftest
 from .schemas import ChatAnswer, Report
 from .tools import DOC_DIR
 
@@ -25,6 +29,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 STORE = Path(__file__).resolve().parent / "reports"
 STORE.mkdir(exist_ok=True)
 JOB_QUEUES: dict[str, asyncio.Queue] = {}
+JOB_TRACES: dict[str, Trace] = {}
 # Finished chat answers, keyed by the ask's own job id. In memory because an
 # answer is only meaningful while the asking tab is open.
 ANSWERS: dict[str, ChatAnswer] = {}
@@ -64,18 +69,80 @@ async def analyze(req: AnalyzeRequest):
     queue: asyncio.Queue = asyncio.Queue()
     JOB_QUEUES[job_id] = queue
 
+    # One trace per job. Its sink pushes structured events onto the same queue
+    # the SSE endpoint drains, so the dashboard and the console see identical
+    # activity — and JOB_TRACES keeps it replayable after the run ends.
+    trace = Trace(job_id, sink=lambda ev: queue.put_nowait(ev))
+    JOB_TRACES[job_id] = trace
+    trace.event(
+        "http.request", "POST /api/projects/analyze",
+        project=req.name, location=req.location, documents=req.docs,
+    )
+    trace.event("job.created", f"job {job_id} queued")
+
     async def work():
         def status(msg: str):
             queue.put_nowait(msg)
         try:
-            report = await run_pipeline(req.name, req.location, req.docs, on_status=status)
-            (STORE / f"{job_id}.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
+            report = await run_pipeline(
+                req.name, req.location, req.docs, on_status=status, trace=trace,
+            )
+            path = STORE / f"{job_id}.json"
+            path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+            trace.event("job.persisted", f"report written to {path}",
+                        bytes=path.stat().st_size)
+            trace.event("job.done", f"job {job_id} complete")
+            trace.print_summary()
             queue.put_nowait("__DONE__")
         except Exception as e:
-            queue.put_nowait(f"__ERROR__ {e}")
+            # Previously the traceback was swallowed and only str(e) reached the
+            # client — which for AgentDidNotConverge was just an agent name.
+            trace.error("job.failed", f"{type(e).__name__}: {e}",
+                        traceback=traceback.format_exc()[-2000:])
+            trace.print_summary()
+            queue.put_nowait(f"__ERROR__ {type(e).__name__}: {e}")
 
     asyncio.create_task(work())
     return {"jobId": job_id}
+
+
+@app.get("/api/jobs/{job_id}/trace")
+async def job_trace(job_id: str):
+    """Full structured trace for a job — every phase, LLM call, tool call, and
+    sandbox operation with timings. This is the end-to-end view."""
+    t = JOB_TRACES.get(job_id)
+    if t is None:
+        return {"error": "unknown job", "jobId": job_id}
+    return {"jobId": job_id, "summary": t.summary(), "events": t.dump()}
+
+
+@app.get("/api/health")
+async def health():
+    """Is every external dependency this backend needs actually reachable?"""
+    t = Trace("health")
+    llm_configured = bool(os.getenv("LLM_API_KEY"))
+    if not llm_configured:
+        t.warn("health.llm", "LLM_API_KEY not set — the agent loop cannot run")
+    return {
+        "ok": llm_configured,
+        "llm": {
+            "configured": llm_configured,
+            "model": os.getenv("LLM_MODEL", "gpt-4o"),
+            "baseUrl": os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"),
+        },
+        "sandbox": sandbox_health(t),
+        "webSearch": {"configured": bool(os.getenv("TAVILY_API_KEY"))},
+        "docs": {"dir": os.getenv("DOC_DIR"), "knowledgeBase": os.getenv("KB_DIR")},
+    }
+
+
+@app.get("/api/health/sandbox")
+async def health_sandbox():
+    """Spin a real Daytona sandbox, run code in it, tear it down. Proves the
+    sandbox path end-to-end without running a full diligence job."""
+    t = Trace("sandbox-selftest")
+    result = sandbox_selftest(t)
+    return {**result, "trace": t.dump()}
 
 
 @app.get("/api/jobs/{job_id}/stream")
@@ -85,6 +152,12 @@ async def stream(job_id: str):
         queue = JOB_QUEUES[job_id]
         while True:
             msg = await queue.get()
+            # The queue carries two shapes: legacy status strings from
+            # `on_status`, and structured trace events from the Trace sink.
+            # Both go out; the client can render whichever it understands.
+            if isinstance(msg, dict):
+                yield f"data: {json.dumps({'event': msg})}\n\n"
+                continue
             yield f"data: {json.dumps({'status': msg})}\n\n"
             if msg.startswith("__DONE__") or msg.startswith("__ERROR__"):
                 break
