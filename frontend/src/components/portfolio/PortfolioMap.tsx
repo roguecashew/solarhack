@@ -1,70 +1,88 @@
-import { Card } from "@/components/ui/Card";
 import { bandColorVar } from "@/lib/band";
-import type { Project } from "@/lib/types";
+import { clsx } from "@/lib/clsx";
+import type { Project, RiskFactorDefinition } from "@/lib/types";
+import { RiskFactorLegend } from "./RiskFactorLegend";
 
 /**
- * Decorative portfolio overview. Pins are placed from a rough normalization of
- * each project's coordinates over a soft stylized panel — not a real basemap,
- * and honestly labelled as such.
+ * Portfolio map card: a decorative Map/List toolbar, a stylized (non-geolocated)
+ * panel with one pin per project coloured by risk band, and the risk-factor
+ * legend beneath. Honestly labelled as a placeholder.
  */
-export function PortfolioMap({ projects }: { projects: Project[] }) {
-  const lats = projects.map((p) => p.latitude);
-  const lons = projects.map((p) => p.longitude);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
 
-  // Inset the pins so they never touch the panel edges.
-  const norm = (v: number, min: number, max: number) =>
-    max === min ? 50 : 12 + ((v - min) / (max - min)) * 76;
+// Fixed scatter positions, matching the reference, applied in project order.
+const PIN_POSITIONS: { left: number; top: number }[] = [
+  { left: 31, top: 58 },
+  { left: 22, top: 44 },
+  { left: 44, top: 66 },
+  { left: 27, top: 70 },
+  { left: 52, top: 38 },
+];
 
+export function PortfolioMap({
+  projects,
+  factors,
+}: {
+  projects: Project[];
+  factors: RiskFactorDefinition[];
+}) {
   return (
-    <Card>
-      <h2 className="text-sm font-medium text-ink">Portfolio overview</h2>
-      <div
-        className="relative mt-3 overflow-hidden rounded-[5px]"
-        style={{
-          height: 220,
-          background:
-            "linear-gradient(150deg, var(--color-vista-soft) 0%, var(--color-surface-2) 100%)",
-        }}
-      >
-        {/* Soft grid to read as a stylized map, not decoration for its own sake. */}
+    <div className="flex-[1_1_300px] rounded-[11px] border border-hairline bg-white p-4 shadow-card">
+      <div className="mb-3 flex justify-end gap-1.5">
+        <ToggleButton active>Map</ToggleButton>
+        <ToggleButton>List</ToggleButton>
+      </div>
+
+      <div className="relative h-[210px] overflow-hidden rounded-[5px] bg-surface-2">
         <div
-          className="absolute inset-0 opacity-40"
+          className="absolute inset-0 opacity-70"
           style={{
             backgroundImage:
-              "linear-gradient(var(--color-hairline) 1px, transparent 1px), linear-gradient(90deg, var(--color-hairline) 1px, transparent 1px)",
-            backgroundSize: "36px 36px",
+              "linear-gradient(to right, #ECEEF3 1px, transparent 1px), linear-gradient(to bottom, #ECEEF3 1px, transparent 1px)",
+            backgroundSize: "30px 30px",
           }}
         />
-        {projects.map((p) => {
-          const left = norm(p.longitude, minLon, maxLon);
-          const top = 100 - norm(p.latitude, minLat, maxLat);
+        {projects.map((p, i) => {
+          const pos = PIN_POSITIONS[i % PIN_POSITIONS.length];
           return (
             <span
               key={p.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${left}%`, top: `${top}%` }}
-            >
-              <span
-                className="block rounded-full ring-2 ring-white"
-                style={{
-                  width: 14,
-                  height: 14,
-                  backgroundColor: bandColorVar[p.band],
-                }}
-                title={p.name}
-              />
-            </span>
+              className="absolute size-[9px] rounded-full border-2 border-white"
+              style={{
+                left: `${pos.left}%`,
+                top: `${pos.top}%`,
+                backgroundColor: bandColorVar[p.band],
+                boxShadow: "0 0 0 1px var(--color-hairline)",
+              }}
+              title={p.name}
+            />
           );
         })}
+        <div className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-[3px] text-[10px] text-faint">
+          Placeholder — not geolocated
+        </div>
       </div>
-      <p className="mt-3 text-xs text-faint">
-        Illustrative map — pins are not geolocated. Color reflects each
-        project&rsquo;s risk band.
-      </p>
-    </Card>
+
+      <RiskFactorLegend factors={factors} />
+    </div>
+  );
+}
+
+function ToggleButton({
+  active = false,
+  children,
+}: {
+  active?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={clsx(
+        "rounded-full px-3 py-1.5 text-[11px] font-medium",
+        active ? "bg-ink text-white" : "bg-surface-2 text-muted",
+      )}
+    >
+      {children}
+    </button>
   );
 }

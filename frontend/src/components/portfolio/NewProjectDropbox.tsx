@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/Card";
 import { clsx } from "@/lib/clsx";
 import { analyze } from "@/lib/agent/client";
 import { slugify } from "@/lib/agent/liveStore";
@@ -10,9 +9,9 @@ import { slugify } from "@/lib/agent/liveStore";
 const DEFAULT_PROJECT = { name: "Project Alpha", location: "West Texas" };
 
 /**
- * Dashed drop zone that starts a new project from one or several documents at
- * once. Starts a real pipeline run; falls back to the scripted scan when the
- * agent backend is unreachable.
+ * Horizontal dashed drop zone that starts a new project from one or several
+ * documents at once. Starts a real pipeline run; falls back to the scripted
+ * scan when the agent backend is unreachable.
  */
 export function NewProjectDropbox() {
   const router = useRouter();
@@ -33,36 +32,36 @@ export function NewProjectDropbox() {
   }
 
   return (
-    <Card padded={false}>
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        void start(e.dataTransfer.files);
+      }}
+      className={clsx(
+        "flex flex-wrap items-center justify-between gap-4 rounded-[11px] border border-dashed p-5 transition-colors",
+        dragging ? "border-hairline bg-select" : "border-hairline bg-surface-2",
+      )}
+    >
+      <div>
+        <div className="mb-[3px] text-[13.5px] font-semibold text-ink">
+          Start a new project
+        </div>
+        <div className="text-[11.5px] text-faint">
+          Drag in one or multiple documents to begin analysis
+        </div>
+      </div>
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          void start(e.dataTransfer.files);
-        }}
-        className={clsx(
-          "flex w-full flex-col items-center justify-center gap-2 rounded-[11px] border border-dashed px-6 py-10 text-center transition-colors",
-          dragging
-            ? "border-hairline bg-select"
-            : "border-hairline bg-white hover:bg-surface-2",
-        )}
+        className="rounded-full border border-hairline bg-canvas px-4 py-2 text-[12.5px] font-medium text-muted hover:text-ink"
       >
-        <span className="text-sm font-medium text-ink">
-          Drop documents to start a new project
-        </span>
-        <span className="text-xs text-muted">
-          One or several files become one project.
-        </span>
-        <span className="mt-2 text-xs font-medium text-vista">
-          Or click to browse
-        </span>
+        Browse files
       </button>
       <input
         ref={inputRef}
@@ -71,6 +70,6 @@ export function NewProjectDropbox() {
         hidden
         onChange={(e) => void start(e.target.files)}
       />
-    </Card>
+    </div>
   );
 }

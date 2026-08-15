@@ -78,7 +78,7 @@ export function DropZone() {
         void start(e.dataTransfer.files);
       }}
       className={clsx(
-        "flex cursor-pointer flex-col items-center justify-center rounded-[11px] border border-dashed px-6 py-12 text-center transition-colors",
+        "cursor-pointer rounded-[11px] border-[1.5px] border-dashed px-5 py-8 text-center transition-colors",
         dragging
           ? "border-hairline bg-select"
           : "border-hairline bg-surface-2 hover:bg-vista-soft",
@@ -91,16 +91,16 @@ export function DropZone() {
         className="hidden"
         onChange={(e) => void start(e.target.files)}
       />
-      <p className="text-base font-medium text-ink">
-        Drop due-diligence documents to scan
+      <p className="text-[14px] font-semibold text-ink">
+        Drag documents here to start a new project
       </p>
-      <p className="mt-1 max-w-md text-sm text-muted">
+      <p className="mt-[5px] text-[12px] text-faint">
         {picked.length > 0
           ? `${picked.length} file${picked.length === 1 ? "" : "s"} selected — starting the scan…`
-          : "Add land, legal, financial, materials and offtake files. RAI reads the set and flags contradictions across them."}
+          : "PDF, DOCX, and XLSX supported — upload one or several at once"}
       </p>
-      <span className="mt-4 inline-flex items-center rounded-full bg-ink px-4 py-2 text-sm font-medium text-white">
-        Select files
+      <span className="mt-[14px] inline-flex items-center rounded-full border border-hairline bg-white px-4 py-2 text-[12.5px] font-medium text-muted transition-colors hover:text-ink">
+        Browse files
       </span>
     </div>
   );

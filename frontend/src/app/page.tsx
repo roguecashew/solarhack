@@ -1,27 +1,39 @@
-import { PageContainer } from "@/components/ui/PageContainer";
-import { Card } from "@/components/ui/Card";
-import {
-  ITC_DEADLINE_LABEL,
-  portfolioSummary,
-  projects,
-  recentDocuments,
-} from "@/lib/mockData";
+import { PortfolioShell } from "@/components/portfolio/PortfolioShell";
 import { DropZone } from "@/components/home/DropZone";
-import { StatBoxes } from "@/components/home/StatBoxes";
 import { StatusDonut, type DonutSegment } from "@/components/home/StatusDonut";
 import { ScoreBars, type ScoreBarRow } from "@/components/home/ScoreBars";
-import { RecentDocumentsTable } from "@/components/home/RecentDocumentsTable";
-import { InProgressList } from "@/components/home/InProgressList";
+import { StatusPill } from "@/components/ui/StatusPill";
+import { clsx } from "@/lib/clsx";
+import { statusLabelText, statusToBand } from "@/lib/band";
+import { portfolioSummary, projects, recentActivity } from "@/lib/mockData";
+
+/** "Project Alpha" → "Alpha" for the compact chart / stat labels. */
+function shortName(name: string): string {
+  return name.replace(/^Project\s+/, "");
+}
 
 export default function HomePage() {
   const summary = portfolioSummary();
 
+  const needsReviewNames = projects
+    .filter((p) => p.status === "needs-review")
+    .map((p) => shortName(p.name));
+
   const stats = [
-    { value: summary.count, label: "Active projects in review" },
-    { value: summary.avgScore, label: "Portfolio average activation score" },
     {
-      value: summary.needsReview + summary.atRisk,
-      label: "Projects needing review",
+      label: "Active projects",
+      value: summary.count,
+      sub: "Across the current pipeline",
+    },
+    {
+      label: "Portfolio activation",
+      value: summary.avgScore,
+      sub: "Average score out of 100",
+    },
+    {
+      label: "Needs review",
+      value: summary.needsReview,
+      sub: needsReviewNames.join(", "),
     },
   ];
 
@@ -31,83 +43,90 @@ export default function HomePage() {
     { label: "At risk", value: summary.atRisk, band: "risk" },
   ];
 
-  const scoreRows: ScoreBarRow[] = [...projects]
-    .sort((a, b) => b.activationScore - a.activationScore)
-    .map((p) => ({
-      name: p.name,
-      score: p.activationScore,
-      band: p.band,
-    }));
-
-  const inProgressDocs = recentDocuments.filter((d) => d.status !== "Analyzed");
+  const scoreRows: ScoreBarRow[] = projects.map((p) => ({
+    name: shortName(p.name),
+    score: p.activationScore,
+    band: p.band,
+  }));
 
   return (
-    <PageContainer>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-ink">RAI</h1>
-        <p className="mt-1 text-muted">
-          Read a project&apos;s due-diligence document set, surface the
-          contradictions between documents, and score how close it is to
-          activation.
-        </p>
-        <p className="mt-2 text-sm text-muted">{ITC_DEADLINE_LABEL}</p>
-      </header>
+    <PortfolioShell maxWidth={1000}>
+      <div className="text-[22px] font-semibold text-ink">Home</div>
+      <p className="mt-1 mb-[22px] text-[13.5px] text-muted">
+        Drop in a new project, or check on recent activity across your pipeline.
+      </p>
 
-      <DropZone />
-
-      <div className="mt-6">
-        <StatBoxes stats={stats} />
+      <div className="mb-[22px]">
+        <DropZone />
       </div>
 
-      <div className="mt-6 grid gap-3 lg:grid-cols-2">
-        <Card>
-          <h2 className="text-base font-medium text-ink">Portfolio status mix</h2>
-          <p className="mt-1 text-sm text-muted">
-            {summary.atRisk > 0
-              ? `${summary.onTrack} on track, ${summary.needsReview} in review and ${summary.atRisk} at risk across the portfolio.`
-              : `${summary.onTrack} on track and ${summary.needsReview} in review across the portfolio.`}
-          </p>
-          <div className="mt-5">
-            <StatusDonut segments={donutSegments} total={summary.count} />
+      <div className="mb-[18px] grid grid-cols-3 gap-3">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-[5px] border border-hairline bg-white px-[18px] py-4 shadow-card"
+          >
+            <div className="mb-1.5 text-[11px] font-medium text-faint">
+              {s.label}
+            </div>
+            <div className="text-[24px] font-semibold text-ink tabular-nums">
+              {s.value}
+            </div>
+            <div className="mt-[3px] text-[11px] text-muted">{s.sub}</div>
           </div>
-        </Card>
+        ))}
+      </div>
 
-        <Card>
-          <h2 className="text-base font-medium text-ink">
+      <div className="mb-[22px] grid grid-cols-2 gap-3">
+        <div className="rounded-[11px] border border-hairline bg-white px-5 py-[18px] shadow-card">
+          <div className="mb-[14px] text-[12.5px] font-semibold text-ink">
+            Portfolio status
+          </div>
+          <StatusDonut segments={donutSegments} />
+        </div>
+
+        <div className="rounded-[11px] border border-hairline bg-white px-5 py-[18px] shadow-card">
+          <div className="mb-[14px] text-[12.5px] font-semibold text-ink">
             Activation score by project
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Higher is closer to activation. Bars are colored by risk band, so a
-            flagged bar reflects open flags — not just a low number.
-          </p>
-          <div className="mt-5">
-            <ScoreBars rows={scoreRows} />
           </div>
-        </Card>
+          <ScoreBars rows={scoreRows} />
+        </div>
       </div>
 
-      <div className="mt-6 grid gap-3 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <h2 className="text-base font-medium text-ink">Recent documents</h2>
-          <p className="mt-1 text-sm text-muted">
-            The latest files added across every project and where each sits in
-            the pipeline.
-          </p>
-          <div className="mt-4">
-            <RecentDocumentsTable docs={recentDocuments} />
+      <div className="overflow-hidden rounded-[11px] border border-hairline bg-white shadow-card">
+        <div className="border-b border-hairline px-5 py-[14px] text-[13px] font-semibold text-ink">
+          Recent activity
+        </div>
+        {recentActivity.map((a, i) => (
+          <div
+            key={`${a.name}-${a.time}`}
+            className={clsx(
+              "flex items-center gap-[14px] px-5 py-[13px]",
+              i > 0 && "border-t border-hairline",
+            )}
+          >
+            <div className="flex-1 text-[13px] font-medium text-ink">
+              {a.name}
+            </div>
+            <div className="w-20 shrink-0 text-[11px] text-faint">{a.kind}</div>
+            <div className="w-[110px] shrink-0">
+              {a.kind === "Project" && a.status ? (
+                <StatusPill
+                  band={statusToBand(a.status)}
+                  label={statusLabelText[a.status]}
+                  size="sm"
+                  dot={false}
+                />
+              ) : (
+                <span className="text-[11.5px] text-faint">{a.project}</span>
+              )}
+            </div>
+            <div className="w-[110px] shrink-0 text-right text-[11.5px] text-faint">
+              {a.time}
+            </div>
           </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-base font-medium text-ink">In progress</h2>
-          <p className="mt-1 text-sm text-muted">
-            Documents still being read or queued.
-          </p>
-          <div className="mt-4">
-            <InProgressList docs={inProgressDocs} />
-          </div>
-        </Card>
+        ))}
       </div>
-    </PageContainer>
+    </PortfolioShell>
   );
 }
