@@ -30,6 +30,24 @@ LLM_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-5")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://hackathon.josephbissell.com/v1")
 LLM_OPENAI_MODEL = os.getenv("LLM_MODEL", "kimi-latest")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+# Cap generated text per turn — long generations are what trips the bridge's
+# 524 gateway timeout — and retry transient failures instead of aborting the
+# run. The bridge also sits behind Cloudflare bot protection: request bursts
+# earn a short 403 ban (observed clearing in ~90s), so concurrency is throttled
+# and 403s ride out with backoff instead of failing the run.
+OPENAI_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
+OPENAI_RETRIES = int(os.getenv("LLM_RETRIES", "5"))
+_OPENAI_BACKOFF = (5, 15, 30, 45)  # seconds between attempts; spans the ~90s block
+_LLM_SEMAPHORE: asyncio.Semaphore | None = None
+
+
+def _llm_semaphore() -> asyncio.Semaphore:
+    """Process-wide cap on concurrent model calls (built lazily so it binds to
+    the running event loop)."""
+    global _LLM_SEMAPHORE
+    if _LLM_SEMAPHORE is None:
+        _LLM_SEMAPHORE = asyncio.Semaphore(int(os.getenv("LLM_MAX_CONCURRENCY", "3")))
+    return _LLM_SEMAPHORE
 
 # Caps thinking *and* response text together. Adaptive thinking is on by
 # default on Opus 5, so a budget sized only for the answer truncates mid-turn.
@@ -49,13 +67,28 @@ _client = anthropic.AsyncAnthropic()
 _JSON_FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
 
+def _extract_json(text: str) -> Any:
+    """Parse the model's contract JSON, salvaging prose-wrapped output. Small
+    models often wrap JSON in chatter or fences — find the outermost {...}."""
+    text = _JSON_FENCE.sub("", text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+        raise
+
+
 async def _openai_chat(messages: list[dict], role_prompt: str, tools: dict) -> dict:
-    """One call against an OpenAI-compatible endpoint (the Fireworks bridge)."""
+    """One call against an OpenAI-compatible endpoint (the Fireworks bridge),
+    with retry on transient 5xx (the bridge's 524 gateway timeout)."""
     import httpx
     payload: dict[str, Any] = {
         "model": LLM_OPENAI_MODEL,
         "messages": [{"role": "system", "content": role_prompt}] + messages,
         "temperature": 0,
+        "max_tokens": OPENAI_MAX_TOKENS,
     }
     if tools:
         payload["tools"] = [
@@ -70,14 +103,28 @@ async def _openai_chat(messages: list[dict], role_prompt: str, tools: dict) -> d
             for name, fn in tools.items()
         ]
     headers = {"Authorization": f"Bearer {LLM_API_KEY}"} if LLM_API_KEY else {}
-    async with httpx.AsyncClient(timeout=180) as client:
-        r = await client.post(
-            f"{LLM_BASE_URL}/chat/completions",
-            headers=headers,
-            json=payload,
-        )
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]
+    last: Exception | None = None
+    for attempt in range(OPENAI_RETRIES):
+        try:
+            async with _llm_semaphore():
+                async with httpx.AsyncClient(timeout=180) as client:
+                    r = await client.post(
+                        f"{LLM_BASE_URL}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+                    r.raise_for_status()
+                    return r.json()["choices"][0]["message"]
+        except httpx.HTTPStatusError as e:
+            last = e
+            code = e.response.status_code
+            retryable = code >= 500 or code == 403  # 524 timeout / Cloudflare ban
+            if retryable and attempt < OPENAI_RETRIES - 1:
+                wait = _OPENAI_BACKOFF[min(attempt, len(_OPENAI_BACKOFF) - 1)]
+                await asyncio.sleep(wait)
+                continue
+            raise
+    raise last  # unreachable, satisfies type checkers
 
 
 class AgentDidNotConverge(Exception):
@@ -176,7 +223,7 @@ class Agent:
             if not tool_calls:
                 text = _JSON_FENCE.sub("", msg.get("content") or "")
                 try:
-                    result = self.contract.model_validate(json.loads(text))
+                    result = self.contract.model_validate(_extract_json(text))
                     self.on_status(f"[{self.name}] done")
                     return result
                 except (json.JSONDecodeError, ValidationError, TypeError) as e:
@@ -259,7 +306,7 @@ class Agent:
                         text = "".join(b.text for b in response.content if b.type == "text")
                         try:
                             result = self.contract.model_validate(
-                                json.loads(_JSON_FENCE.sub("", text))
+                                _extract_json(text)
                             )
                         except (json.JSONDecodeError, ValidationError, TypeError) as e:
                             # Previously invisible: the agent would silently burn a

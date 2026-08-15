@@ -89,3 +89,12 @@ def sandbox_run(code: str) -> str:
     # permitted. Imported lazily so tools.py stays importable without the SDK.
     from .sandbox import sandbox_run as _run
     return _run(code)
+
+
+# --- JSON Schemas for tool specs (the model needs these to pass arguments) ---
+pdf_extract.schema = {"type": "object", "properties": {"filename": {"type": "string", "description": "Dossier filename in the project docs directory, e.g. 01_Land_and_Site_Due_Diligence.pdf"}}, "required": ["filename"]}
+xlsx_extract.schema = {"type": "object", "properties": {"filename": {"type": "string", "description": "Spreadsheet filename in the project docs directory, e.g. 01_Project_Red_Flag_Risk_Register.xlsx"}}, "required": ["filename"]}
+kb_lookup.schema = {"type": "object", "properties": {"query": {"type": "string", "description": "Keywords to search the due-diligence knowledge base for, e.g. transformer lead time or zoning prohibition"}, "max_hits": {"type": "integer", "description": "Max passages to return (default 5)"}}, "required": ["query"]}
+web_search.schema = {"type": "object", "properties": {"query": {"type": "string", "description": "Web search query for current or location-specific regulatory and market data"}}, "required": ["query"]}
+web_fetch.schema = {"type": "object", "properties": {"url": {"type": "string", "description": "Full https URL of the source page to read"}}, "required": ["url"]}
+sandbox_run.schema = {"type": "object", "properties": {"code": {"type": "string", "description": "Python code to execute in the isolated sandbox"}}, "required": ["code"]}

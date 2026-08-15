@@ -10,8 +10,10 @@ import {
 
 /** No event for this long → show an indeterminate (pulsing) bar. */
 const STALE_MS = 3000;
-/** No event for this long with no terminal event → timeout state. */
-const TIMEOUT_MS = 60000;
+/** No event for this long with no terminal event → timeout state.
+ *  3 minutes of true silence means the process is hung; a slow-but-alive
+ *  run (single model calls can exceed 60s) must never see this screen. */
+const TIMEOUT_MS = 180000;
 
 export type ScanPhase =
   | "connecting"
