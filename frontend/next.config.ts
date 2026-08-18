@@ -2,9 +2,10 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 // GitHub Pages serves this repo at https://<user>.github.io/solarhack/, so every
-// asset and route needs the repo name prefixed. Set to "" for a custom domain
-// or a <user>.github.io repo, where the site lives at the domain root.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "/solarhack";
+// asset and route needs the repo name prefixed. The Pages workflow sets
+// NEXT_PUBLIC_BASE_PATH; local dev and root-domain hosts leave it unset and
+// serve from "/".
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const nextConfig: NextConfig = {
   // Emit a plain static site into frontend/out — no Node server at runtime,
