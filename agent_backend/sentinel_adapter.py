@@ -128,12 +128,14 @@ def _iso_from(text: str | None) -> str | None:
 def to_sentinel(report: Report, project_id: str, lat: float = 0, lon: float = 0,
                 capacity_mw: float = 0, uploaded: str = "2026-08-14") -> dict:
     """Convert a Red Flag Report into a complete Solar Sentinel ProjectDetail."""
-    dims = {d.name: d for d in report.dimensions}
+    # Dimension names arrive in whatever case the model felt like ("land" vs
+    # "Land") — normalize for lookup or pillars silently zero out.
+    dims = {d.name.strip().lower(): d for d in report.dimensions}
     evidence: dict[str, dict] = {}
     pillars = []
 
     for name in PILLARS:
-        dim = dims.get(name)
+        dim = dims.get(name.lower())
         score = dim.score if dim else 0.0
         factors = []
 

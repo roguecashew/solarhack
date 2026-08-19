@@ -118,8 +118,11 @@ async def _openai_chat(messages: list[dict], role_prompt: str, tools: dict) -> d
         except httpx.HTTPStatusError as e:
             last = e
             code = e.response.status_code
-            # 429 = bridge rate limit, 403 = Cloudflare ban, 5xx/524 = gateway
-            retryable = code >= 500 or code in (403, 429)
+            # 429 = rate limit, 403 = Cloudflare ban, 5xx/524 = gateway timeout.
+            # 400 is retried too — this bridge intermittently 400s on valid
+            # requests (observed on the same payload that succeeds on retry),
+            # so strict 4xx semantics don't hold here.
+            retryable = code >= 400 and code != 401 and code != 404
             if retryable and attempt < OPENAI_RETRIES - 1:
                 retry_after = e.response.headers.get("retry-after")
                 wait = (

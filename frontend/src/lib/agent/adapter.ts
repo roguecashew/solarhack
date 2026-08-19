@@ -146,12 +146,14 @@ function isoFrom(text: string | null): string | undefined {
 
 /** Convert one agent report into a complete Solar Sentinel ProjectDetail. */
 export function toSentinel(report: AgentReport, meta: SentinelMeta): ProjectDetail {
-  const dims = new Map(report.dimensions.map((d) => [d.name, d]));
+  // Dimension names arrive in whatever case the model felt like ("land" vs
+  // "Land") — normalize for lookup or pillars silently zero out.
+  const dims = new Map(report.dimensions.map((d) => [d.name.trim().toLowerCase(), d]));
   const evidence: Record<string, Evidence> = {};
   const pillars: PillarScore[] = [];
 
   for (const name of PILLARS) {
-    const dim = dims.get(name);
+    const dim = dims.get(name.toLowerCase());
     const score = dim?.score ?? 0;
     const factors: Factor[] = [];
 

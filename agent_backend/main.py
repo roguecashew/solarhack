@@ -119,17 +119,32 @@ async def job_trace(job_id: str):
 @app.get("/api/health")
 async def health():
     """Is every external dependency this backend needs actually reachable?"""
+    from .agents.base import LLM_BASE_URL, LLM_OPENAI_MODEL, PROVIDER
+
     t = Trace("health")
-    llm_configured = bool(os.getenv("ANTHROPIC_API_KEY"))
-    if not llm_configured:
-        t.warn("health.llm", "ANTHROPIC_API_KEY not set — the agent loop cannot run")
-    return {
-        "ok": llm_configured,
-        "llm": {
+    if PROVIDER == "openai":
+        llm_configured = bool(os.getenv("LLM_API_KEY"))
+        llm_info = {
+            "provider": "openai",
+            "configured": llm_configured,
+            "model": LLM_OPENAI_MODEL,
+            "baseUrl": LLM_BASE_URL,
+        }
+        if not llm_configured:
+            t.warn("health.llm", "LLM_API_KEY not set — bridge calls will 401")
+    else:
+        llm_configured = bool(os.getenv("ANTHROPIC_API_KEY"))
+        llm_info = {
+            "provider": "anthropic",
             "configured": llm_configured,
             "model": os.getenv("ANTHROPIC_MODEL", "claude-opus-5"),
             "effort": os.getenv("AGENT_EFFORT", "high"),
-        },
+        }
+        if not llm_configured:
+            t.warn("health.llm", "ANTHROPIC_API_KEY not set — the agent loop cannot run")
+    return {
+        "ok": llm_configured,
+        "llm": llm_info,
         "sandbox": sandbox_health(t),
         "webSearch": {"configured": bool(os.getenv("TAVILY_API_KEY"))},
         "docs": {"dir": os.getenv("DOC_DIR"), "knowledgeBase": os.getenv("KB_DIR")},
