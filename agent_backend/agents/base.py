@@ -219,7 +219,7 @@ class Agent:
             {
                 "role": "user",
                 "content": (
-                    f"{task}\n\nContext:\n{json.dumps(context or {}, default=str)[:12000]}\n\n"
+                    f"{task}\n\nContext:\n{json.dumps(context or {}, default=str)[:9000]}\n\n"
                     f"Use tools if you need more information. When done, reply with ONLY JSON "
                     f"matching this schema:\n{json.dumps(self.contract.model_json_schema())}"
                 ),
@@ -280,7 +280,7 @@ class Agent:
             {
                 "role": "user",
                 "content": (
-                    f"{task}\n\nContext:\n{json.dumps(context or {}, default=str)[:12000]}\n\n"
+                    f"{task}\n\nContext:\n{json.dumps(context or {}, default=str)[:9000]}\n\n"
                     f"Use tools if you need more information. When done, reply with ONLY JSON "
                     f"matching this schema:\n{json.dumps(self.contract.model_json_schema())}"
                 ),

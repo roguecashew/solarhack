@@ -24,7 +24,7 @@ def pdf_extract(filename: str) -> str:
     """Extract full text of a PDF dossier with page markers. Runs in the sandbox."""
     from pypdf import PdfReader
     reader = PdfReader(str(DOC_DIR / filename))
-    return "\n".join(f"--- page {i+1} ---\n{p.extract_text() or ''}" for i, p in enumerate(reader.pages))[:24000]
+    return "\n".join(f"--- page {i+1} ---\n{p.extract_text() or ''}" for i, p in enumerate(reader.pages))[:12000]
 
 
 def xlsx_extract(filename: str) -> str:
@@ -38,7 +38,7 @@ def xlsx_extract(filename: str) -> str:
             cells = [str(c) if c is not None else "" for c in row]
             if any(cells):
                 out.append(" | ".join(cells))
-    return "\n".join(out)[:24000]
+    return "\n".join(out)[:12000]
 
 
 def kb_lookup(query: str, max_hits: int = 5) -> str:

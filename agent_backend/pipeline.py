@@ -29,16 +29,19 @@ from .schemas import (
 StatusFn = Callable[[str], None]
 
 PIPELINE_MODE = os.getenv("PIPELINE_MODE", "fast")
+# Hard wall per agent: a stalled turn on a slow bridge must fail fast into the
+# degrade path, not burn 6 minutes of retries before anyone notices.
+AGENT_TIMEOUT = int(os.getenv("AGENT_TIMEOUT", "300"))
 
 
 async def _degrade(coro, fallback, on_status: StatusFn, label: str):
-    """Run an agent, but on failure continue with an empty result instead of
-    killing the whole run. The bridge is slow/flaky and the model is small —
-    one flailing agent must not sink 24 others."""
+    """Run an agent with a hard wall-clock cap, but on failure continue with an
+    empty result instead of killing the whole run. The bridge is slow/flaky and
+    the model is small — one flailing agent must not sink the others."""
     try:
-        return await coro
+        return await asyncio.wait_for(coro, timeout=AGENT_TIMEOUT)
     except Exception as e:
-        on_status(f"[{label}] degraded ({str(e)[:70]}) — continuing with empty result")
+        on_status(f"[{label}] degraded ({type(e).__name__}: {str(e)[:60]}) — continuing with empty result")
         return fallback
 
 
@@ -82,14 +85,15 @@ async def run_pipeline(
         for d in docs
     ]))
     if PIPELINE_MODE == "fast":
-        # Fast lane: skip gap analysis and the scout fan-out entirely, and run
-        # ONE consolidated researcher against the extracted facts. Same demo
-        # narrative, ~15 fewer agents to die on a flaky bridge.
-        on_status("[pipeline] fast lane — consolidated research pass")
+        # Fast lane: skip gap analysis and the scout fan-out entirely. The
+        # consolidated researcher and the cross-examiner only need the extracted
+        # facts, so they run CONCURRENTLY (the cross-examiner does its own
+        # kb_lookup research) — this alone cuts ~5 min of serial waiting.
+        on_status("[pipeline] fast lane — research + cross-examination in parallel")
         acquired: list[AcquiredData] = []
         acquired_ctx: list[dict] = []
-        findings = [
-            await _degrade(
+        core_findings, contradictions = await asyncio.gather(
+            _degrade(
                 _agent("Researcher:core", RESEARCHER, Findings, "researcher", on_status, trace).run(
                     "Research this project against every diligence component "
                     "(state/federal law, permitting, zoning, ecology, community, financials, "
@@ -99,8 +103,19 @@ async def run_pipeline(
                 ),
                 Findings(component="core"),
                 on_status, "Researcher:core",
-            )
-        ]
+            ),
+            _agent(
+                "CrossExaminer", CROSS_EXAMINER, ContradictionSet, "cross_examiner", on_status, trace
+            ).run(
+                "Cross-examine all extracted facts against each other and against research findings.",
+                {
+                    "facts": [f.model_dump() for f in fact_sets],
+                    "findings": [],
+                    "acquired": [],
+                },
+            ),
+        )
+        findings = [core_findings]
     else:
         trace.event("phase", "auditing package completeness", phase="gap")
         # 2b. Gap analysis: what does a full diligence package need that the docs lack?
@@ -142,31 +157,32 @@ async def run_pipeline(
         ]
         findings = await asyncio.gather(*researchers)
 
-    trace.event("phase", "finding contradictions between documents", phase="cross_examine")
-    # 3. Cross-examine (with a single research feedback loop)
-    contradictions: ContradictionSet = await _agent(
-        "CrossExaminer", CROSS_EXAMINER, ContradictionSet, "cross_examiner", on_status, trace
-    ).run(
-        "Cross-examine all extracted facts against each other and against research findings.",
-        {
-            "facts": [f.model_dump() for f in fact_sets],
-            "findings": [f.model_dump() for f in findings],
-            "acquired": acquired_ctx,
-        },
-    )
-    if contradictions.needs_more_research:
-        followups = await asyncio.gather(*[
-            _degrade(
-                _agent(f"Researcher:{r.component}:followup", RESEARCHER, Findings, "researcher", on_status, trace).run(
-                    f"Follow-up question: {r.question}",
-                    {"project": profile.model_dump(), "component": r.component},
-                ),
-                Findings(component=r.component),
-                on_status, f"Researcher:{r.component}:followup",
-            )
-            for r in contradictions.needs_more_research[:3]
-        ])
-        findings = list(findings) + list(followups)
+        trace.event("phase", "finding contradictions between documents", phase="cross_examine")
+        # Deep mode: cross-examine after research, then one feedback loop of
+        # follow-up researchers before scoring.
+        contradictions: ContradictionSet = await _agent(
+            "CrossExaminer", CROSS_EXAMINER, ContradictionSet, "cross_examiner", on_status, trace
+        ).run(
+            "Cross-examine all extracted facts against each other and against research findings.",
+            {
+                "facts": [f.model_dump() for f in fact_sets],
+                "findings": [f.model_dump() for f in findings],
+                "acquired": acquired_ctx,
+            },
+        )
+        if contradictions.needs_more_research:
+            followups = await asyncio.gather(*[
+                _degrade(
+                    _agent(f"Researcher:{r.component}:followup", RESEARCHER, Findings, "researcher", on_status, trace).run(
+                        f"Follow-up question: {r.question}",
+                        {"project": profile.model_dump(), "component": r.component},
+                    ),
+                    Findings(component=r.component),
+                    on_status, f"Researcher:{r.component}:followup",
+                )
+                for r in contradictions.needs_more_research[:3]
+            ])
+            findings = list(findings) + list(followups)
 
     trace.event("phase", "weighted rubric → readiness + decision", phase="score")
     # 4. Score
