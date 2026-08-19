@@ -118,9 +118,15 @@ async def _openai_chat(messages: list[dict], role_prompt: str, tools: dict) -> d
         except httpx.HTTPStatusError as e:
             last = e
             code = e.response.status_code
-            retryable = code >= 500 or code == 403  # 524 timeout / Cloudflare ban
+            # 429 = bridge rate limit, 403 = Cloudflare ban, 5xx/524 = gateway
+            retryable = code >= 500 or code in (403, 429)
             if retryable and attempt < OPENAI_RETRIES - 1:
-                wait = _OPENAI_BACKOFF[min(attempt, len(_OPENAI_BACKOFF) - 1)]
+                retry_after = e.response.headers.get("retry-after")
+                wait = (
+                    int(retry_after)
+                    if retry_after and retry_after.isdigit()
+                    else _OPENAI_BACKOFF[min(attempt, len(_OPENAI_BACKOFF) - 1)]
+                )
                 await asyncio.sleep(wait)
                 continue
             raise

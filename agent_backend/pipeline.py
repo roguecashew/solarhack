@@ -1,8 +1,18 @@
 """Pipeline: orchestrator -> parallel doc extraction + parallel research ->
-cross-examination (with one feedback re-entry) -> scoring -> liaison -> report."""
+cross-examination (with one feedback re-entry) -> scoring -> liaison -> report.
+
+PIPELINE_MODE:
+  fast — demo-reliable lane: Orchestrator -> Extractors -> one consolidated
+         Researcher -> CrossExaminer -> Scorer -> Liaison (~7 agents). The full
+         swarm is ~25 agents; on a slow/flaky bridge every agent is another
+         chance to die, so fast is the default.
+  deep — the full swarm: gap analysis, data scouts, and one researcher per
+         component. Set PIPELINE_MODE=deep when the endpoint is healthy.
+"""
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Callable
 
 from .agents.base import Agent, AgentDidNotConverge
@@ -17,6 +27,8 @@ from .schemas import (
 )
 
 StatusFn = Callable[[str], None]
+
+PIPELINE_MODE = os.getenv("PIPELINE_MODE", "fast")
 
 
 async def _degrade(coro, fallback, on_status: StatusFn, label: str):
@@ -69,45 +81,66 @@ async def run_pipeline(
         )
         for d in docs
     ]))
-    trace.event("phase", "auditing package completeness", phase="gap")
-    # 2b. Gap analysis: what does a full diligence package need that the docs lack?
-    gap: GapAnalysis = await _degrade(
-        _agent("GapAnalyzer", GAP_ANALYZER, GapAnalysis, "gap_analyzer", on_status, trace).run(
-            "Compare the extracted facts against full diligence data requirements. List every missing data need.",
-            {"project": profile.model_dump(), "facts": [f.model_dump() for f in fact_sets]},
-        ),
-        GapAnalysis(needs=[]),
-        on_status, "GapAnalyzer",
-    )
-
-    # 2c. Data acquisition: one scout per need, pulling real data from public sources
-    on_status(f"[pipeline] {len(gap.needs)} data gaps found — dispatching data scouts")
-    acquired: list[AcquiredData] = list(await asyncio.gather(*[
-        _degrade(
-            _agent(f"DataScout:{n.component}", DATA_SCOUT, AcquiredData, "data_scout", on_status, trace).run(
-                f"Acquire this missing diligence data: {n.missing}\nWhy it matters: {n.why_it_matters}",
-                {"project": profile.model_dump(), "source_hint": n.source_hint},
+    if PIPELINE_MODE == "fast":
+        # Fast lane: skip gap analysis and the scout fan-out entirely, and run
+        # ONE consolidated researcher against the extracted facts. Same demo
+        # narrative, ~15 fewer agents to die on a flaky bridge.
+        on_status("[pipeline] fast lane — consolidated research pass")
+        acquired: list[AcquiredData] = []
+        acquired_ctx: list[dict] = []
+        findings = [
+            await _degrade(
+                _agent("Researcher:core", RESEARCHER, Findings, "researcher", on_status, trace).run(
+                    "Research this project against every diligence component "
+                    "(state/federal law, permitting, zoning, ecology, community, financials, "
+                    "interconnection, grid, demand, resource/supply chain) using the knowledge "
+                    "base and web. Flag benchmark violations with severity.",
+                    {"project": profile.model_dump(), "facts": [f.model_dump() for f in fact_sets]},
+                ),
+                Findings(component="core"),
+                on_status, "Researcher:core",
+            )
+        ]
+    else:
+        trace.event("phase", "auditing package completeness", phase="gap")
+        # 2b. Gap analysis: what does a full diligence package need that the docs lack?
+        gap: GapAnalysis = await _degrade(
+            _agent("GapAnalyzer", GAP_ANALYZER, GapAnalysis, "gap_analyzer", on_status, trace).run(
+                "Compare the extracted facts against full diligence data requirements. List every missing data need.",
+                {"project": profile.model_dump(), "facts": [f.model_dump() for f in fact_sets]},
             ),
-            AcquiredData(component=n.component, still_missing=[n.missing]),
-            on_status, f"DataScout:{n.component}",
+            GapAnalysis(needs=[]),
+            on_status, "GapAnalyzer",
         )
-        for n in gap.needs[:6]  # cap parallel scouts (burst limits on the bridge)
-    ]))
-    acquired_ctx = [a.model_dump() for a in acquired]
 
-    researchers = [
-        _degrade(
-            _agent(f"Researcher:{c}", RESEARCHER, Findings, "researcher", on_status, trace).run(
-                f"Research the '{c}' component for this project and flag benchmark violations. "
-                "Acquired data from scouts is included in context — use it.",
-                {"project": profile.model_dump(), "acquired": acquired_ctx},
-            ),
-            Findings(component=c),
-            on_status, f"Researcher:{c}",
-        )
-        for c in (profile.components or ["financials"])
-    ]
-    findings = await asyncio.gather(*researchers)
+        # 2c. Data acquisition: one scout per need, pulling real data from public sources
+        on_status(f"[pipeline] {len(gap.needs)} data gaps found — dispatching data scouts")
+        acquired: list[AcquiredData] = list(await asyncio.gather(*[
+            _degrade(
+                _agent(f"DataScout:{n.component}", DATA_SCOUT, AcquiredData, "data_scout", on_status, trace).run(
+                    f"Acquire this missing diligence data: {n.missing}\nWhy it matters: {n.why_it_matters}",
+                    {"project": profile.model_dump(), "source_hint": n.source_hint},
+                ),
+                AcquiredData(component=n.component, still_missing=[n.missing]),
+                on_status, f"DataScout:{n.component}",
+            )
+            for n in gap.needs[:6]  # cap parallel scouts (burst limits on the bridge)
+        ]))
+        acquired_ctx = [a.model_dump() for a in acquired]
+
+        researchers = [
+            _degrade(
+                _agent(f"Researcher:{c}", RESEARCHER, Findings, "researcher", on_status, trace).run(
+                    f"Research the '{c}' component for this project and flag benchmark violations. "
+                    "Acquired data from scouts is included in context — use it.",
+                    {"project": profile.model_dump(), "acquired": acquired_ctx},
+                ),
+                Findings(component=c),
+                on_status, f"Researcher:{c}",
+            )
+            for c in (profile.components or ["financials"])
+        ]
+        findings = await asyncio.gather(*researchers)
 
     trace.event("phase", "finding contradictions between documents", phase="cross_examine")
     # 3. Cross-examine (with a single research feedback loop)
@@ -123,9 +156,13 @@ async def run_pipeline(
     )
     if contradictions.needs_more_research:
         followups = await asyncio.gather(*[
-            _agent(f"Researcher:{r.component}:followup", RESEARCHER, Findings, "researcher", on_status, trace).run(
-                f"Follow-up question: {r.question}",
-                {"project": profile.model_dump(), "component": r.component},
+            _degrade(
+                _agent(f"Researcher:{r.component}:followup", RESEARCHER, Findings, "researcher", on_status, trace).run(
+                    f"Follow-up question: {r.question}",
+                    {"project": profile.model_dump(), "component": r.component},
+                ),
+                Findings(component=r.component),
+                on_status, f"Researcher:{r.component}:followup",
             )
             for r in contradictions.needs_more_research[:3]
         ])

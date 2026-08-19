@@ -52,20 +52,39 @@ function ScanningView() {
     return () => clearTimeout(t);
   }, [state.phase, resultId, router]);
 
+  // A live run that dies must never leave the demo on an error corpse: after a
+  // short beat with the honest message, continue into the scripted demo scan.
+  const failedRef = useRef(false);
+  useEffect(() => {
+    if (state.phase !== "error" || !jobId || failedRef.current) return;
+    failedRef.current = true;
+    const t = setTimeout(() => router.push("/scanning"), 5000);
+    return () => clearTimeout(t);
+  }, [state.phase, jobId, router]);
+
   if (state.phase === "error") {
     return (
       <PageContainer className="max-w-3xl">
         <Card>
           <h1 className="text-xl font-semibold text-ink">
-            Analysis couldn&apos;t finish
+            Live run couldn&apos;t finish
           </h1>
           <p className="mt-2 text-muted">
             {state.error ??
               "The analysis stopped unexpectedly and no results were saved."}
           </p>
+          <p className="mt-3 text-sm text-muted">
+            Continuing with the demo scan in a few seconds…
+          </p>
           <div className="mt-5 flex items-center gap-3">
-            <Button variant="primary" onClick={() => retry()}>
-              Retry
+            <Button
+              variant="primary"
+              onClick={() => router.push("/scanning")}
+            >
+              Continue with demo scan
+            </Button>
+            <Button variant="secondary" onClick={() => retry()}>
+              Retry live
             </Button>
             <Button variant="secondary" onClick={() => router.push("/projects")}>
               Back
